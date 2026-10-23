@@ -147,3 +147,7 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Academic material: module notes (third-party, large) and LaTeX build files
+acad_docs/IIS-notes-*.pdf
+acad_docs/**/build/
