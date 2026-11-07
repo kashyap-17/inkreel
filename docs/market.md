@@ -56,6 +56,7 @@ People tell trip stories in two ways: photo-first (each photo prompts the story)
 ## Name check (7 Nov 2026)
 
 - **inkreel.app** is live: "Inkreel: AI-assisted studio for films, music videos and audiobooks". Another AI creative product with the same name. Run by Blackbox Entertainment LLC (© 2026). In "private beta", invite-only with a waitlist; $19/month planned with a 14-day trial. No user numbers, testimonials, reviews, social accounts or trademark notice found, and web search returned nothing about it.
+- **inkreel.vercel.app** is taken by "InkReel.ai — Creative writing and filmmaking for everyone" (© 2025; checked 7 Nov 2026). Possibly the same people as inkreel.app or an earlier version of it (same styling of the name, similar focus); the pages don't link to each other, so not confirmed.
 - **inkreel.ai** registered March 2026 (no page); **inkreel.co** registered May 2026 (shows an unrelated PR site); **inkreel.com** registered 2023 (no page).
 - **Available:** inkreel.io, inkreel.co.uk.
 - Before any public launch or spending on branding: check UK and US trademarks, app stores and social handles, and decide whether to keep the name.

@@ -34,7 +34,7 @@ One TypeScript project for the interface and a small server part.
 
 ## Hosting: Vercel address, no custom domain yet (7 Nov 2026)
 
-The app runs on Vercel's free Hobby plan at a `.vercel.app` address (for example `inkreel.vercel.app`, if free). HTTPS is included, which the phone's share sheet needs. API keys (Gemini, Langfuse) live in Vercel's environment settings, never in the code.
+The app runs on Vercel's free Hobby plan at a `.vercel.app` address: `inkreel-eight.vercel.app` (Vercel added "-eight" because `inkreel.vercel.app` belongs to InkReel.ai). Every push to `main` deploys. HTTPS is included, which the phone's share sheet needs. API keys (Gemini, Langfuse) live in Vercel's environment settings, never in the code.
 
 - **Why:** free, enough for building and testing with an invite link.
 - **Revisit before a public launch:** Vercel's Hobby plan is for personal, non-commercial use, so charging or running Inkreel as a business means Vercel Pro or another host such as Cloudflare. Buy a domain at the same time.

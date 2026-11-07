@@ -219,3 +219,41 @@ select {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+.wordmark {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  margin: 0 0 24px;
+}
+
+.lede {
+  font-size: 1.05rem;
+  margin: 8px 0 4px;
+}
+
+.summary {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+details {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+details summary {
+  cursor: pointer;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+h2 .muted {
+  font-weight: 400;
+}
+
+main > section > .button,
+main > section > label.button {
+  margin: 16px 0 8px;
+}
