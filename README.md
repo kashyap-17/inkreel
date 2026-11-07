@@ -16,7 +16,7 @@ Your words stay exactly as you wrote them. Where AI adds text, it is marked so y
 
 ## Status
 
-Early development. Working so far: add photos, read when each was taken, and group them into moments, all on your device.
+Early development. Working so far: paste your writing and split it into pieces, then add photos and see them grouped into moments, all on your device. Matching is next.
 
 ## Run it locally
 

@@ -52,18 +52,23 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Copy:** the photo step read like a diagnostics panel. Rewritten: what the step is for, what a moment is, plain warnings that say what to do, moments grouped by day; test counts moved into a collapsed "Photo details" section.
 - **AGENTS.md:** Next.js's dev server writes it; git-ignored, and its one rule (check Next's bundled docs) moved into `.claude/CLAUDE.md`.
 
+## 7 Nov 2026: flow rebuilt words first
+
+- **Owner's correction:** the first page described only the photo feature, which broke the agreed flow. Rebuilt to the plan: a start screen that says what Inkreel is (headline "Your camera roll, your story.", kept at the owner's request), how it works, the two promises, and the three modes with two marked "coming soon"; then "Your words"; then photos as step 2. A step bar shows Words, Photos, Matches, Share.
+- **Built:** "I have writing": paste or type, split by paragraph or line (suggested automatically), join pieces, each labelled "Yours". The flow is a typed reducer (`src/lib/flow`). Tests for splitting and the reducer.
+- **Owner's note:** the landing page wording gets a proper edit once more of the product works.
+
 ## Where things stand (end of 7 Nov 2026)
 
-**Done:** photo step (EXIF time, time zone, GPS, file-date fallback, grouping into moments by time, day view), deployed and tested on the phone.
+**Done:** start screen with the three modes; "I have writing" words step (pieces, split, join); photo step (EXIF time, time zone, GPS, file-date fallback, grouping into moments by time, day view). Deployed and tested on the phone (photo upload).
 
 **Waiting on the owner:** the "Photo details" counts from a real trip ("Time saved in photo" vs "Placed by file date"), which answer whether capture time survives a Google Photos upload; and which break setting splits the trip sensibly.
 
 **Next, in order:**
-1. Words step: paste or type writing, split into pieces ("I have writing" mode); other two modes shown as "coming soon".
-2. In the browser: set aside blurry, duplicate and screenshot photos; pick 1–3 photos per moment; resize copies to send.
-3. Consent screen (one approval per trip).
-4. Server function with the Gemini key, invite code and Zod-checked replies; call 1 (describe, Flash Lite) then call 2 (match, 3.6 Flash). Needs `GEMINI_API_KEY` in `.env` and in Vercel's environment settings.
-5. Review screen (swap, pick photo, weak matches), then preview and share.
-6. Langfuse tracing once calls exist (no Langfuse account yet).
+1. In the browser: set aside blurry, duplicate and screenshot photos; pick 1–3 photos per moment; resize copies to send.
+2. Consent screen (one approval per trip).
+3. Server function with the Gemini key, invite code and Zod-checked replies; call 1 (describe, Flash Lite) then call 2 (match, 3.6 Flash). Needs `GEMINI_API_KEY` in `.env` and in Vercel's environment settings.
+4. Review screen (swap, pick photo, weak matches), then preview and share.
+5. Langfuse tracing once calls exist (no Langfuse account yet).
 
-**Also open:** README tagline (owner deferred; suggestion was "Write the trip. Inkreel finds the photos."); tests for photos from two phones with and without time zones, the HEIC full-file read, and reading many photos at once; optional shorter address such as `inkreel-app.vercel.app`.
+**Also open:** landing page wording (owner will edit once more works; keep the headline "Your camera roll, your story."); keep the draft (words, photos) when the page reloads; tests for photos from two phones with and without time zones, the HEIC full-file read, and reading many photos at once; optional shorter address such as `inkreel-app.vercel.app`.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { isHeic, isPhoto } from "@/lib/photos/files";
 import { formatDay, formatTime } from "@/lib/photos/format";
 import { DEFAULT_GROUPING, groupIntoMoments } from "@/lib/photos/moments";
@@ -13,7 +13,7 @@ type Status = { kind: "idle" } | { kind: "reading"; done: number; total: number 
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-export function PhotoStep() {
+export function PhotoStep({ footer }: { footer?: (moments: number) => ReactNode }) {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [photos, setPhotos] = useState<PhotoMeta[]>([]);
   const [skipped, setSkipped] = useState(0);
@@ -62,7 +62,7 @@ export function PhotoStep() {
   }, [photos, previews]);
 
   return (
-    <section>
+    <section className="photo-step">
       <label className="button">
         {status.kind === "idle" ? "Choose photos" : "Choose again"}
         <input
@@ -192,6 +192,7 @@ export function PhotoStep() {
               })}
             </section>
           ))}
+          {footer?.(moments.length)}
         </>
       )}
     </section>

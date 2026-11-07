@@ -58,6 +58,8 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 
 ## Folder structure
 - `src/app/`: Next.js pages and (later) the server function.
-- `src/components/`: screens and UI pieces.
+- `src/components/`: screens (`Flow` holds the steps: start, words, photos) and UI pieces.
+- `src/lib/flow/`: the flow as a typed reducer (steps, mode, pieces), with tests.
+- `src/lib/words/`: splitting writing into pieces (never changes the words), with tests.
 - `src/lib/photos/`: browser photo pipeline (EXIF, grouping), plain code with unit tests next to each file (`*.test.ts`).
 - `src/config/`: the product name (`app.ts`) and other settings in one place.
