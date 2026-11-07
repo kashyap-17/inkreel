@@ -12,7 +12,11 @@ export function Flow() {
   const pieces = state.pieces.length;
 
   // Each step starts at the top of the page.
-  useEffect(() => window.scrollTo(0, 0), [state.step]);
+  // Block body on purpose: newer browsers return a Promise from scrollTo, and React would
+  // treat a returned value as a clean-up function and crash on the next step change.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [state.step]);
 
   return (
     <main>
