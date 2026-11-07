@@ -30,3 +30,17 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Market notes:** `market.md` written; Journiary (owner's pick as closest) read from its website and privacy policy and compared.
 - **Hosting and name:** Vercel `.vercel.app` address for now. Domain lookups found inkreel.com, .co, .ai and .app taken; inkreel.app is a private-beta AI film and music-video studio with the same name. Name kept as a working name; trademark search before launch.
 - **Review pass:** fixed inconsistencies across the docs (matching options, build order, request size limit on the server function, set-aside wording); added missing cases (HEIC photos, caption-only pieces, the 2,200-character caption limit, 4:5 slides); added personal-data patterns to `.gitignore` before any photos are handled.
+
+## 7 Nov 2026: model choice and Gemini terms
+
+- **Asked:** Claude to pick free-tier models using the owner's AI Studio rate-limit page.
+- **Checked:** Google's public rate-limit, pricing and model pages (free-tier numbers appear only in AI Studio, so the owner read them off the project page) and the Gemini API Additional Terms.
+- **Found in the terms:** UK use of the free tier gets paid-tier data terms, as recorded earlier, but an app offered to other users in the UK must use Paid Services, and users must be 18 or over. `decisions.md` corrected: free tier for the owner's testing only.
+- **Decided (owner's split):** Flash Lite (~500 requests/day) for describing photos; 3.6 Flash (~20/day) for matching and writing, the calls where quality matters most. Gemini 3.8 Flash and Gemma 4 31B (14,400/day but 16K tokens/min) compared for matching in Milestone 0.
+
+## 7 Nov 2026: first build slice (photos to moments)
+
+- **Owner's call:** start building now and compare models during the build, rather than a separate no-UI feasibility test first.
+- **Built:** Next.js app (TypeScript, exact package versions, lockfile committed, Node 26.13.0 pinned). Photo step: pick photos, read capture time, time-zone offset and GPS from EXIF in the browser, fall back to the file date (flagged), group into moments by time gap with a gap control for tuning, show moments with thumbnails. Unit tests for date parsing, grouping and the EXIF reader (a tiny JPEG is built in the test, so no photos in the repo).
+- **Fixed along the way:** EXIF is read from the first 512 KB of each file (whole file only for HEIC without a date), which also works in tests where the browser's file reader isn't available; the EXIF library loads only when photos are picked; Next.js's dev server needed the Mac's network address allowed so a phone can load it.
+- **Setup note:** Homebrew builds Node from source on Intel Macs now, so Node was installed from the official, checksum-verified archive instead.

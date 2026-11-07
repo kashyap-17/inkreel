@@ -66,7 +66,7 @@ Almost everything runs in the browser. The server only holds the AI API key and 
 - **Why:** an API key in browser code can be copied by anyone who opens the page.
 - **No database, no file storage, no accounts in the MVP.** Drafts are saved in the browser (IndexedDB). The server keeps nothing.
 - **Trade-off:** a draft can't be resumed on another device. Long-term memory (corrections, people and places) will need a database later.
-- **Access:** an invite code for testers, so the public URL can't use up the AI quota.
+- **Access:** an invite code for testers, so the public URL can't use up the AI quota. Outside testers need the paid Gemini tier first (see "AI model").
 
 ## Photo input: plain upload from the browser (7 Nov 2026)
 
@@ -95,14 +95,39 @@ Before anything is sent anywhere, the browser:
 
 - **Why:** free, fast, and only a few resized photos per moment ever leave the device.
 
-## AI model: Gemini API free tier (7 Nov 2026)
+## AI model: Gemini API free tier, Flash Lite for volume, Flash for judgement (7 Nov 2026)
 
-Used to describe each moment (from its representative photos) and to match writing to moments with a reason.
+Used to describe each moment (from its representative photos), to match writing to moments with a reason, and to write lines in "help me write" and "mix".
 
-- **Why:** no cost. In the UK, Google applies its paid-service terms to free use, so inputs are not used to improve Google's products. Check the official Gemini API terms before testing with other people's photos.
-- **Cost model:** a handful of requests per trip. Describing goes in batches of moments, because a Vercel function accepts about 4.5 MB per request; matching is one text-only request. Limits are requests per minute and per day, not money.
-- **Model choice:** pick from the current free-tier models at setup. Code calls the model through one small interface so it can be switched by a setting.
+**Which model for which call:**
+
+| Call | Model | Why |
+|---|---|---|
+| 1. Describe moments (images) | Gemini 3.5 Flash Lite | Several requests per trip; needs the higher limits. Descriptions are factual, the easier task. |
+| 2. Match (text) | Gemini 3.6 Flash | One request per trip; the judgement the product depends on. |
+| 3. Help me write (text) | Gemini 3.6 Flash | One request; writing that goes into the user's post. |
+| 4. Mix suggestions (text) | Gemini 3.6 Flash | Same reason as call 3. |
+
+Free-tier limits on the owner's project (AI Studio, 7 Nov 2026):
+
+| Model | Requests/min | Tokens/min | Requests/day |
+|---|---|---|---|
+| Gemini 3.6 Flash | 5 | 250K | ~20 |
+| Gemini 3.8 Flash | 5 | 250K | ~20 |
+| Gemini 3.5 Flash Lite | 15 | 250K | ~500 |
+| Gemma 4 31B | 30 | 16K | 14,400 |
+
+- **Budget per trip:** a few Lite requests for describing, two or three Flash requests at most, so about 7 full trips a day on Flash. Requests are queued to stay under the per-minute limits and retried on a rate-limit error.
+- **If Flash's daily quota runs out:** the call falls back to Lite, and the trace records which model ran.
+- **Model per call is a setting,** not hard-coded, behind one small interface.
+- **Compared in Milestone 0:** whether Lite's descriptions are good enough (spot-checked against Flash on one trip); Gemini 3.8 Flash and Gemma 4 31B (`gemma-4-31b-it`) against 3.6 Flash for matching. Gemma's daily limit suits repeated prompt tuning, but its 16K tokens/min makes describing photos slow, and its JSON output is undocumented, so it is tested first.
+- **Not chosen:** preview models (tighter limits, can be retired on two weeks' notice); Gemini 2.5 models (deprecated, redirected to newer models from 1 Dec 2026).
 - **Not available:** Claude Pro doesn't include API access.
+
+**Terms (Gemini API Additional Terms, effective 23 Mar 2026):**
+- In the UK, EEA and Switzerland, the paid-service data terms apply to free use too, so prompts and replies aren't used to improve Google's products.
+- **Free tier is for the owner's own testing only.** The terms allow only Paid Services for an app made available to users in the UK, EEA or Switzerland. Before anyone else gets the invite link, move to a Cloud project with billing on. Gemma appears to be free-only on the Gemini API, so for outside users it would need another host (its weights are open, Apache 2.0).
+- **Users must be 18 or over,** and the app must not be aimed at under-18s.
 
 ## Output: carousel + one caption, then text on images (7 Nov 2026)
 

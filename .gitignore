@@ -165,3 +165,9 @@ watch-history.json
 # Academic material: module notes (third-party, large) and LaTeX build files
 acad_docs/IIS-notes-*.pdf
 acad_docs/**/build/
+
+# Next.js and Vercel
+next-env.d.ts
+.vercel
+# Written by the Next.js dev server; our agent instructions are in .claude/CLAUDE.md
+AGENTS.md

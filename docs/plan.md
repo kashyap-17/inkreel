@@ -151,6 +151,8 @@ Inkreel uses contracts 1–4 and never 5.
 
 Each call has a written specification (task, audience, constraints, examples, success criteria, output format) kept in code and versioned. The user's text is always passed as data, clearly delimited, never as instructions. Every reply is a JSON schema, validated in code before use. A valid schema shows the shape is right, not that the content is true.
 
+Model per call (see "AI model" in `decisions.md`): call 1 on Gemini 3.5 Flash Lite; calls 2–4 on Gemini 3.6 Flash, falling back to Lite if Flash's daily quota runs out.
+
 ### Call 1: describe moments (images in)
 - **Input:** 1–3 resized photos per moment (EXIF removed), the moment's time of day. Sent in batches of moments so each request stays under the server function's ~4.5 MB limit.
 - **Output per moment:** scene, setting, time of day, light and weather, energy (busy/still), 3–5 notable details, and `unclear` where unsure.
@@ -180,7 +182,7 @@ Each call has a written specification (task, audience, constraints, examples, su
 
 ### Context and records
 - Order in each call: task first, then the data, then the task restated.
-- **Tracing with Langfuse.** Every model call passes through the server function, so tracing lives there. Each trip is one trace and each call one step in it, recording: the prompt version, the assembled input, the reply, the validation result, the retry if any, time taken and tokens. The browser adds the edge taken (for example "weak match → caption only") and what the user did with each match (kept, swapped, re-matched), so we can see where matching fails in real use.
+- **Tracing with Langfuse.** Every model call passes through the server function, so tracing lives there. Each trip is one trace and each call one step in it, recording: the prompt version, the model, the assembled input, the reply, the validation result, the retry if any, time taken and tokens. The browser adds the edge taken (for example "weak match → caption only") and what the user did with each match (kept, swapped, re-matched), so we can see where matching fails in real use.
 - **What is sent to Langfuse:** text only. Photos are never sent; a call that includes photos records the moment IDs, photo count and sizes instead.
 - **Who is traced:** on for the owner's own trips and Milestone 0. For anyone else, only if they agree on the consent screen; otherwise off.
 - Langfuse's EU data region, or self-hosted later if needed.
@@ -212,13 +214,18 @@ The scenario the first version must handle end to end. It doubles as the manual 
 - **Photo:** id, capture time, time-zone offset, GPS (optional), blur score, exposure score, hash, kept or set aside (with reason).
 - **Moment:** id, photo IDs, start, end, representative photo IDs, description.
 - **Match:** piece ID, moment ID or null, chosen photo ID, reason, strength, alternatives, status (`suggested`, `swapped`, `confirmed`).
-- **Trace (in Langfuse):** one per trip; one step per call with prompt version, input (text only), reply, validation result, retries, time and tokens; events for the edge taken and the user's action on each match.
+- **Trace (in Langfuse):** one per trip; one step per call with prompt version, model, input (text only), reply, validation result, retries, time and tokens; events for the edge taken and the user's action on each match.
 
 ## 9. Milestones
 
-### Milestone 0: feasibility test (no UI)
+### Milestone 0: feasibility checks, run inside the app as it's built
+
+The owner chose to build straight away and run these checks in the app rather than as separate scripts.
+
 - Check that capture time survives an upload from Google Photos on the owner's phone.
 - On one trip: group by time gap, describe with Gemini, match the owner's own lines.
+- Save the descriptions locally, so prompt changes to matching don't re-send photos or use up the describe quota.
+- Models: describe with Flash Lite and spot-check against 3.6 Flash; match with 3.6 Flash, 3.8 Flash and Gemma 4 31B on the same descriptions. Check first that each returns valid JSON.
 - Run the CLIP + time baseline on the same trip.
 - Test set: 10–20 lines, with the owner's own choice of moment recorded **before** seeing any system output. Kept outside the repo.
 - Score both against the success criteria. Each prompt change is one version, run on the same test set and scored, with the runs compared in Langfuse.
@@ -228,7 +235,7 @@ The scenario the first version must handle end to end. It doubles as the manual 
 - Next.js app; Words → Photos → Consent → Review → Preview → Share. The Words screen shows all three modes; the two not yet built are marked "coming soon".
 - Filtering and grouping in the browser; calls 1 and 2 through the server function; validation; trace.
 - Match by hand when consent is declined or a call fails.
-- Deployed on Vercel with an invite code.
+- Deployed on Vercel with an invite code. Before the link goes to anyone but the owner: paid Gemini tier and an 18+ note (see "AI model" in `decisions.md`).
 
 ### Milestone 2: all three modes and the loop back
 - Help me write (call 3), then Mix (call 4, simple version).

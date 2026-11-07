@@ -2,7 +2,7 @@
 
 Inkreel turns a trip album with hundreds of photos and videos into shareable posts that still sound like the person who took them. The user adds their own thoughts or writing (or answers light prompts); Inkreel groups the photos into moments, matches each piece of writing to the right moment, explains why, and lets the user swap anything.
 
-**Start here:** `docs/plan.md` (what to build, in milestone order; next up is Milestone 0, the feasibility test) and `docs/decisions.md` (what's decided and why).
+**Start here:** `docs/plan.md` (what to build, in milestone order; building now; Milestone 0's checks run inside the app as it's built) and `docs/decisions.md` (what's decided and why).
 
 Original background, research and open questions: `acad_docs/initial_handover.md`. Where it differs from `docs/`, `docs/` is newer.
 
@@ -48,4 +48,15 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 
 ## Working conventions
 - Keep a development log of meaningful AI use (prompts, decisions, what changed).
-- Commands and folder structure will be added here once the app is set up.
+
+## Setup and commands
+- Node 26.13.0 (`.nvmrc`), npm 11. Install with `npm ci` (uses the lockfile). Add packages at exact versions (`.npmrc` has `save-exact`); commit `package-lock.json`.
+- Secrets in `.env` (git-ignored): `GEMINI_API_KEY`, Langfuse keys. Never in code.
+- Next.js 16 may differ from what you know: before using an unfamiliar Next.js API or convention, check the docs bundled in `node_modules/next/dist/docs/` and heed deprecation notices. (Next's dev server writes the same rule to `AGENTS.md`, which is git-ignored.)
+- `npm run dev` · `npm run dev:phone` (reachable from a phone on the same Wi-Fi at the Mac's IP, port 3000) · `npm run check` (typecheck, lint, tests; run before saying work is done) · `npm run build`.
+
+## Folder structure
+- `src/app/`: Next.js pages and (later) the server function.
+- `src/components/`: screens and UI pieces.
+- `src/lib/photos/`: browser photo pipeline (EXIF, grouping), plain code with unit tests next to each file (`*.test.ts`).
+- `src/config/`: the product name (`app.ts`) and other settings in one place.

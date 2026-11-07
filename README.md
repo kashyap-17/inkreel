@@ -16,4 +16,15 @@ Your words stay exactly as you wrote them. Where AI adds text, it is marked so y
 
 ## Status
 
-Early development. Nothing to install or run yet.
+Early development. Working so far: add photos, read when each was taken, and group them into moments, all on your device.
+
+## Run it locally
+
+Needs Node 26 (see `.nvmrc`).
+
+```sh
+npm ci
+npm run dev        # http://localhost:3000
+npm run dev:phone  # also reachable from a phone on the same Wi-Fi
+npm run check      # type check, lint and tests
+```
