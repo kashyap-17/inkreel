@@ -149,10 +149,12 @@ vite.config.ts.timestamp-*
 .turbo
 
 # Personal data: photos, test sets, exports. Never commit.
-photos/
-uploads/
-data/
-Takeout/
+# Folders are anchored to the repo root (leading /) so code folders with the same
+# name, like src/lib/photos/, are not ignored. Image files are ignored everywhere.
+/photos/
+/uploads/
+/data/
+/Takeout/
 *.zip
 watch-history.json
 *.heic
