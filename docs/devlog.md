@@ -44,3 +44,26 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Built:** Next.js app (TypeScript, exact package versions, lockfile committed, Node 26.13.0 pinned). Photo step: pick photos, read capture time, time-zone offset and GPS from EXIF in the browser, fall back to the file date (flagged), group into moments by time gap with a gap control for tuning, show moments with thumbnails. Unit tests for date parsing, grouping and the EXIF reader (a tiny JPEG is built in the test, so no photos in the repo).
 - **Fixed along the way:** EXIF is read from the first 512 KB of each file (whole file only for HEIC without a date), which also works in tests where the browser's file reader isn't available; the EXIF library loads only when photos are picked; Next.js's dev server needed the Mac's network address allowed so a phone can load it.
 - **Setup note:** Homebrew builds Node from source on Intel Macs now, so Node was installed from the official, checksum-verified archive instead.
+
+## 7 Nov 2026: first deploy and copy pass
+
+- **Deployed:** Vercel, connected to the GitHub repo; every push to `main` deploys (install command `npm ci`). Live at `inkreel-eight.vercel.app` (`inkreel.vercel.app` belongs to InkReel.ai). Tested on the owner's phone: picking photos from Google Photos works.
+- **Bug:** the personal-data ignore rule `photos/` also hid the code folder `src/lib/photos/`, so the first deploy failed. Personal-data folders are now ignored only at the repo root; image files are still ignored everywhere. Before committing new folders or ignore rules, check `git status --ignored`.
+- **Copy:** the photo step read like a diagnostics panel. Rewritten: what the step is for, what a moment is, plain warnings that say what to do, moments grouped by day; test counts moved into a collapsed "Photo details" section.
+- **AGENTS.md:** Next.js's dev server writes it; git-ignored, and its one rule (check Next's bundled docs) moved into `.claude/CLAUDE.md`.
+
+## Where things stand (end of 7 Nov 2026)
+
+**Done:** photo step (EXIF time, time zone, GPS, file-date fallback, grouping into moments by time, day view), deployed and tested on the phone.
+
+**Waiting on the owner:** the "Photo details" counts from a real trip ("Time saved in photo" vs "Placed by file date"), which answer whether capture time survives a Google Photos upload; and which break setting splits the trip sensibly.
+
+**Next, in order:**
+1. Words step: paste or type writing, split into pieces ("I have writing" mode); other two modes shown as "coming soon".
+2. In the browser: set aside blurry, duplicate and screenshot photos; pick 1–3 photos per moment; resize copies to send.
+3. Consent screen (one approval per trip).
+4. Server function with the Gemini key, invite code and Zod-checked replies; call 1 (describe, Flash Lite) then call 2 (match, 3.6 Flash). Needs `GEMINI_API_KEY` in `.env` and in Vercel's environment settings.
+5. Review screen (swap, pick photo, weak matches), then preview and share.
+6. Langfuse tracing once calls exist (no Langfuse account yet).
+
+**Also open:** README tagline (owner deferred; suggestion was "Write the trip. Inkreel finds the photos."); tests for photos from two phones with and without time zones, the HEIC full-file read, and reading many photos at once; optional shorter address such as `inkreel-app.vercel.app`.
