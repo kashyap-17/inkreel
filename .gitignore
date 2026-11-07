@@ -148,6 +148,20 @@ vite.config.ts.timestamp-*
 # Turbo Repo
 .turbo
 
+# Personal data: photos, test sets, exports. Never commit.
+photos/
+uploads/
+data/
+Takeout/
+*.zip
+watch-history.json
+*.heic
+*.HEIC
+*.jpg
+*.jpeg
+*.JPG
+*.JPEG
+
 # Academic material: module notes (third-party, large) and LaTeX build files
 acad_docs/IIS-notes-*.pdf
 acad_docs/**/build/
