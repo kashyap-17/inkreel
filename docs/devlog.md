@@ -65,6 +65,17 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Photo estimate:** the owner asked for a rough count before photos. First proposal used paragraphs; the owner preferred word count; word count alone gave a short poem one photo, so the rule mixes words and sentences (examples in `decisions.md`).
 - **Built:** words screen is now a free text box with a live "About 4–6 photos" line; split/join removed; sentence splitter and estimate with tests; checked in Chrome.
 
+## 8 Nov 2026: photo selection by search, not description
+
+- **Owner's proposal:** an LLM rewrites the writing into the right form for an image-embedding model, which then picks the photos; sending dozens or hundreds of photos to an LLM is too much. The owner suggested ColPali or CLIP.
+- **Checked:** research and company material. Embeddings were level with frontier LLMs on hard text-to-image retrieval and far cheaper per photo; CLIP-type models handle feelings-text poorly, and LLM query rewriting helps; Google Photos' Ask Photos uses vector search then Gemini on the shortlist; ColPali is for document pages, not photos. Sources in `decisions.md`.
+- **Decided:** index every kept photo with Gemini Embedding 2 (owner's free limits: 100/min, 1,000/day); 3.6 Flash writes a literal photo description per sentence; plain code scores, chunks and picks photos; Flash Lite checks the chosen photo and two alternatives per chunk and writes the reason. On-phone embedding (MobileCLIP2 or SigLIP 2) compared in Milestone 0; if close, it wins on privacy. The user chooses words in the caption or on the images.
+- **Changed in the docs:** `decisions.md` new "Photo selection" entry, model table and open items; `plan.md` flow graph, failure edges, parts table, contracts, calls 1–5 renumbered, data, walkthrough and Milestone 0 four-way comparison.
+
+## 8 Nov 2026: repo tidy-up
+
+- **Owner's request:** the root was cluttered with config and generated files. The app and all its config moved into `web/` (the tools need their config next to `package.json`, so the folder moves as a whole). Root now: `README.md`, `docs/`, `web/`, `acad_docs/`, `.claude/`. Vercel's root directory set to `web`.
+
 ## Where things stand (end of 8 Nov 2026)
 
 **Done:** start screen with the three modes; "I have writing" words step (free text, live photo estimate); photo step (EXIF time, time zone, GPS, file-date fallback, grouping into moments by time, day view). Deployed and tested on the phone (photo upload).
@@ -72,10 +83,11 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 **Waiting on the owner:** the "Photo details" counts from a real trip ("Time saved in photo" vs "Placed by file date"), which answer whether capture time survives a Google Photos upload; and which break setting splits the trip sensibly.
 
 **Next, in order:**
-1. In the browser: set aside blurry, duplicate and screenshot photos; pick 1–3 photos per moment; resize copies to send.
+1. In the browser: set aside blurry, duplicate and screenshot photos; resize copies to send.
 2. Consent screen (one approval per trip).
-3. Server function with the Gemini key, invite code and Zod-checked replies; call 1 (describe, Flash Lite) then call 2 (match, 3.6 Flash). Needs `GEMINI_API_KEY` in `.env` and in Vercel's environment settings.
-4. Review screen (swap, pick photo, weak matches), then preview and share.
-5. Langfuse tracing once calls exist (no Langfuse account yet).
+3. Server function with the Gemini key, invite code and Zod-checked replies. Call 1 (index photos, Gemini Embedding 2, saved on the phone), call 2 (search queries, 3.6 Flash), matching and chunking in code, call 3 (check and explain, Flash Lite). Needs `GEMINI_API_KEY` in `.env` and in Vercel's environment settings.
+4. Milestone 0 comparison on the owner's 23 photos (four ways of choosing photos), with the owner's picks recorded first.
+5. Review screen (swap, pick photo, move a sentence, fewer/more photos, weak matches), then preview and share (caption or text on images).
+6. Langfuse tracing once calls exist (no Langfuse account yet).
 
 **Also open:** landing page wording (owner will edit once more works; keep the headline "Your camera roll, your story."); keep the draft (words, photos) when the page reloads; tests for photos from two phones with and without time zones, the HEIC full-file read, and reading many photos at once; optional shorter address such as `inkreel-app.vercel.app`.

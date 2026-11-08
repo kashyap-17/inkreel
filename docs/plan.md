@@ -4,10 +4,10 @@ What we are building, how it fits together, and in what order. Reasons for each 
 
 ## 1. What Inkreel does, in one sentence
 
-Inkreel reads the user's words and their trip photos, groups the photos into moments, splits the writing into chunks that fit those moments, proposes a moment for each chunk with a one-line reason, and lets the user change any of it before exporting a carousel and caption.
+Inkreel reads the user's words and their trip photos, groups the photos into moments, turns each sentence into a photo search, splits the writing into chunks that fit the moments found, proposes a photo for each chunk with a one-line reason, and lets the user change any of it before exporting a carousel and caption.
 
-- **What it senses:** the user's writing or answers; each photo's capture time (and GPS when present); what is in the photos.
-- **What it infers, and can get wrong:** which photos belong to one moment; what each moment shows; where the writing should break between photos; which moment fits each chunk.
+- **What it senses:** the user's writing or answers; each photo's capture time (and GPS when present); what is in the photos (as image embeddings).
+- **What it infers, and can get wrong:** which photos belong to one moment; what a photo for each sentence would show (the search query); where the writing should break between photos; which moment and photo fit each chunk.
 - **What it does:** proposes matches on screen. It never posts, deletes or sends anything on its own.
 - **How the user's response changes it:** a match the user swaps or confirms is fixed, and "re-match the rest" uses fixed matches and rejected pairs as constraints.
 
@@ -29,25 +29,29 @@ flowchart TD
   W3 --> P
   P --> U[Add photos]
   U --> R[Prepare in the browser: read times, set aside weak photos, group into moments]
-  R --> C{Send resized photos to describe them?}
-  C -->|yes| D[Describe moments]
+  P --> Q[Search queries: LLM writes a photo description per sentence, text only]
+  R --> C{Send resized photos to index them?}
+  C -->|yes| I[Index photos: one embedding per kept photo, saved on the phone]
   C -->|no| H[Match by hand]
-  D --> M[Chunk and match: group sentences into chunks, pick a moment for each]
-  M --> V[Review: swap, pick photo, move a sentence, fewer or more photos, undo]
+  I --> M[Match and chunk, in code: score sentences against photos, group into chunks, pick photos]
+  Q --> M
+  M --> K[Check and explain: chosen photo + 2 alternatives per chunk, small images]
+  K --> V[Review: swap, pick photo, move a sentence, fewer or more photos, undo]
   H --> V
   V --> E[Preview: carousel and caption]
   E --> S[Share or download]
 
-  V -.->|text edited: re-chunk and match that part| M
-  V -.->|fewer, more or one photo: re-chunk| M
+  V -.->|text edited: new queries for changed sentences, re-match| Q
+  V -.->|fewer, more or one photo: re-chunk in code| M
   V -.->|re-match the rest| M
   V -.->|photos added or removed: regroup| R
   E -.->|back| V
 
   U -.->|no capture time: use file date, ask to check order| R
   U -.->|HEIC not decodable: convert or skip and say so| R
-  D -.->|quota or error after one retry| H
-  M -.->|invalid reply after one retry: even split by the estimate, shown unmatched| V
+  I -.->|quota or error after one retry: match by time only, or by hand| H
+  Q -.->|invalid reply after one retry: the sentence itself is the query| M
+  K -.->|fails: keep matches, reason is the query, marked unchecked| V
   M -.->|weak or no fit: flagged, caption only offered| V
   E -.->|over 20 slides or 2200 characters| V
 ```
@@ -60,14 +64,13 @@ Every change is made directly on screen: tap, drag, edit. There's no chat. Each 
 |---|---|---|
 | Swap a moment, pick another photo, reorder cards, drop a card, keep a card in the caption only | Nothing; instant | MVP |
 | Move a sentence to the card before or after; split a card at a sentence; join two cards | Nothing; instant. A card whose text changed keeps its moment, marked "check this match" | MVP |
-| Fewer photos, more photos, or one photo | The chunk-and-match call with the new target; swapped and confirmed cards stay | MVP |
+| Fewer photos, more photos, or one photo | Chunking in code with the new target (instant), then check and explain for changed cards; swapped and confirmed cards stay | MVP |
 | Undo any review change | Nothing; the previous state comes back | MVP |
-| Edit the text | The cards holding changed sentences are marked out of date; "re-match" re-chunks and matches only those sentences | MVP |
-| Add or remove photos after matching | Regroup. Moments whose photos didn't change keep their description; only new or changed moments are described. Fixed matches stay where their chosen photo is still there; the other cards are re-matched | MVP |
+| Edit the text | New search queries for the changed sentences only; "re-match" re-chunks those cards in code and checks them | MVP |
+| Add or remove photos after matching | Regroup; only new photos are indexed (saved embeddings are reused). Fixed matches stay where their chosen photo is still there; the other cards are re-matched | MVP |
 | Ask for new AI lines (help me write, mix) | Replaced lines are matched; the rest stay | Milestone 2 |
-| Correct a moment's description ("that's the palace, not the fort") | That moment's matches are re-run | Milestone 3 |
+| Edit what Inkreel looked for on a card ("a boat on the lake, not the shore") | That card's search and check | Milestone 3 |
 | Merge or split moments | Matches on those moments are re-run | Milestone 3 |
-| A hint for one card ("this line is about the boat") | The match call for that card, with the hint | Later |
 | Free-form requests ("make it moodier", "use more sunset photos") | Would need an agent that uses the operations above as its tools, under the contracts in §4 | Later, only if testers ask for it |
 
 ### Failure edges in detail (each one is a test case)
@@ -77,22 +80,24 @@ Every change is made directly on screen: tap, drag, edit. There's no chat. Each 
 | Add photos | No capture time on some photos | Use file date; ask the user to check the order |
 | Add photos | A HEIC photo the browser can't decode (e.g. iPhone photos on desktop Chrome) | Convert in the browser; if that fails, skip it and say so |
 | Group | Fewer moments than the photo estimate | Target capped at the number of moments; the photos screen says so |
-| Describe | Quota hit or request fails | Retry once; then "match by hand" or "try later" |
-| Match | Reply fails validation (bad JSON, unknown IDs, a sentence missing, repeated or out of order) | Retry once with the error; then split evenly by the estimate in plain code and show the cards unmatched |
+| Index | Quota hit or request fails | Retry once; then match the photos indexed so far, or by time only, or "match by hand"; saved embeddings mean a later retry only sends the rest |
+| Search queries | Reply fails validation (bad JSON, a sentence missing) | Retry once with the error; then use each sentence itself as its query |
+| Check and explain | Request fails, or the model says a chosen photo doesn't fit | Keep the match with "Looked for: …" as its reason, marked unchecked; a flagged photo is replaced by the next alternative and checked again once |
 | Match | Best fit is weak or none | Review, flagged "no strong match", with the two closest moments and "keep in caption only" |
 | Preview | More than 20 slides | Back to Review, asking the user to drop some |
 | Preview | Caption over 2,200 characters (Instagram's limit) | Show the count; ask the user to drop cards or shorten the text themselves |
-| Consent | User declines | Match by hand; nothing leaves the phone |
+| Consent | User declines | Match by hand (or, if the on-phone model is adopted, match without the check step); no photos leave the phone |
 
 ## 3. Architecture
 
 **In the browser:**
 - Photo pipeline (plain code): read EXIF, score blur and exposure, hash for duplicates, detect screenshots, group by time gap, pick representative photos, resize.
+- Photo embeddings saved in IndexedDB; matching and chunking (plain code): scores, time bonus, chunk breaks, no moment reused.
 - Screens and state: the trip draft in IndexedDB, deletable in one action. No long-term memory in the MVP.
 - Calls to the server function, and the flow's state (which step, which edge was taken).
 - Carousel rendering and sharing.
 
-**On the server:** one function that adds the API key, sends the request to Gemini, validates the reply against its schema, records a trace in Langfuse (when tracing is on), and returns the reply. The function itself keeps nothing.
+**On the server:** one function that adds the API key, sends the request to Gemini (embedding or generation), validates the reply against its schema, records a trace in Langfuse (when tracing is on), and returns the reply. The function itself keeps nothing.
 
 ### Each part, and what happens when it's wrong
 
@@ -103,25 +108,27 @@ Every change is made directly on screen: tap, drag, edit. There's no chat. Each 
 | Knowledge | Nothing from outside the trip | — | — |
 | Model: photo checks | Blur, exposure, duplicate and screenshot checks | A good photo set aside | "View set-aside photos" with restore; the only photo of a moment is never set aside |
 | Model: grouping | Time gap, plus location jump when GPS exists | Two scenes in one moment, or one scene split | Visible in Review; merge and split later (Milestone 3) |
-| Model: describe | Gemini describes 1–3 photos per moment | Invented or wrong detail | Photo shown beside the reason; description viewable |
-| Model: chunk and match | Gemini groups sentences into chunks and picks a moment per chunk | Chunks break in odd places; wrong or weak match, especially for lines about feelings | Move a sentence between cards; fewer or more photos; weak marker; two alternatives first in swap; re-match the rest |
+| Model: photo index | One Gemini Embedding 2 vector per kept photo | Misses what matters in a photo | Swap shows the next-best photos; "what Inkreel looked for" shows the search |
+| Model: search queries | Gemini writes a literal photo description per sentence | A feeling read as the wrong scene | "What Inkreel looked for" on each card; editable in Milestone 3 |
+| Matching and chunking (code) | Scores plus time bonus; chunk breaks; best photo per moment | Chunks break in odd places; wrong or weak match, especially for lines about feelings | Move a sentence between cards; fewer or more photos; weak marker; two alternatives first in swap; re-match the rest |
+| Model: check and explain | Gemini looks at the chosen photo and 2 alternatives, confirms, writes the reason | Invented detail in the reason | Photo shown beside the reason; unchecked matches marked |
 | Planning | None; code fixes the order | — | — |
 | Action | Proposes matches and text; renders the carousel; never posts | — | The user shares |
 | Feedback | Swap, confirm, drop, reorder, accept or reject AI lines | — | "Chosen by you" label shows the change took |
-| Adaptation | Within the trip only: fixed matches and rejected pairs go into the next match call | Re-match moves a match the user liked | Swapped or confirmed cards never move |
+| Adaptation | Within the trip only: fixed matches and rejected pairs constrain the next matching run | Re-match moves a match the user liked | Swapped or confirmed cards never move |
 
-**Shape:** a fixed workflow. Code sets the order of steps; the model is called two or three times per trip. Not an agent: the path is known in advance, and an agent loop would add waiting time, cost and unpredictability. What a fixed workflow can't do (ask a follow-up, search again after a poor match) is handed to the user through the review screen and "re-match the rest".
+**Shape:** a fixed workflow. Code sets the order of steps; generation models are called two or three times per trip, and the embedding model once per photo. Not an agent: the path is known in advance, and an agent loop would add waiting time, cost and unpredictability. What a fixed workflow can't do (ask a follow-up, search again after a poor match) is handed to the user through the review screen and "re-match the rest".
 
-**Simpler alternative, tested first:** CLIP embeddings + time only, no LLM (Milestone 0). If it matches about as well, the LLM isn't needed for matching.
+**Alternatives tested in Milestone 0:** the raw text embedded with no search-query step (no LLM at all); an on-phone embedding model instead of Gemini Embedding 2; and the earlier describe-then-match. See "Photo selection" in `decisions.md`.
 
 ### How the three modes are built
 
 The mode only decides how the write-up is made. After that, every mode runs the same code.
 
-- **I have writing:** no model call. Splitting into sentences is plain code; chunking happens in call 2.
-- **Help me write:** call 3.
-- **Mix:** call 4.
-- **All modes:** calls 1 and 2.
+- **I have writing:** no model call to make the write-up. Splitting into sentences is plain code.
+- **Help me write:** call 4.
+- **Mix:** call 5.
+- **All modes:** calls 1–3, with matching and chunking in code between calls 2 and 3.
 
 Each call is one module: its specification (prompt, versioned), its output schema, its validation, and one function that runs it. No agent skills: skills suit an agent that decides for itself when it needs some guidance. Here, code always knows which call to run.
 
@@ -143,10 +150,10 @@ Inkreel uses contracts 1–4 and never 5.
 |---|---|---|
 | Drop blurry, duplicate and screenshot photos | Execute and report ("34 photos set aside · view · restore") | Reversible; the report keeps it visible. Never drops the only photo of a moment. |
 | Group photos into moments | Execute and report | Reversible; moments are shown. Merge/split later. |
-| Send resized photos to Gemini | Execute with approval, once per trip ("6 moments, 14 photos, resized, location removed") | Data leaving the phone cannot be undone. One decision per trip, not per photo, so approval stays meaningful. |
-| Describe moments | Execute and report (description viewable on each moment) | Reversible; the description is evidence for the reason. |
+| Send resized photos to Gemini (to index them, then a few to check matches) | Execute with approval, once per trip ("80 photos, resized, location removed, to find the ones that fit your words") | Data leaving the phone cannot be undone. One decision per trip, not per photo, so approval stays meaningful. |
+| Index photos and write search queries | Execute and report ("what Inkreel looked for" viewable on each card) | Reversible; the query is evidence for the match. |
 | Chunk the writing and match chunks to moments | Assist: proposes; the user confirms, swaps, moves sentences or asks for fewer or more photos | The core decision stays with the user. |
-| Pick the photo within a moment | Advise: suggests the sharpest; the user picks | Taste is the user's. |
+| Pick the photo within a moment | Advise: suggests the best-fitting; the user picks | Taste is the user's. |
 | Estimate how many photos | Advise: "About 4–6 photos" on the words screen; the real count comes at matching | Sets expectations before the photos are known; nothing is decided from it. |
 | Write lines (help me write) and suggest lines (mix) | Advise: each line marked AI; accept or reject | Authorship stays visible. |
 | Share or download | The user only | Never automated. |
@@ -155,32 +162,43 @@ Inkreel uses contracts 1–4 and never 5.
 
 Each call has a written specification (task, audience, constraints, examples, success criteria, output format) kept in code and versioned. The user's text is always passed as data, clearly delimited, never as instructions. Every reply is a JSON schema, validated in code before use. A valid schema shows the shape is right, not that the content is true.
 
-Model per call (see "AI model" in `decisions.md`): call 1 on Gemini 3.5 Flash Lite; calls 2–4 on Gemini 3.6 Flash, falling back to Lite if Flash's daily quota runs out.
+Model per call (see "AI model" in `decisions.md`): call 1 on Gemini Embedding 2; calls 2, 4 and 5 on Gemini 3.6 Flash, falling back to Lite if Flash's daily quota runs out; call 3 on Gemini 3.5 Flash Lite.
 
-### Call 1: describe moments (images in)
-- **Input:** 1–3 resized photos per moment (EXIF removed), the moment's time of day. Sent in batches of moments so each request stays under the server function's ~4.5 MB limit.
-- **Output per moment:** scene, setting, time of day, light and weather, energy (busy/still), 3–5 notable details, and `unclear` where unsure.
-- **Constraints:** describe only what is visible; no guessing names of places or people; people as counts only.
-- **Checks:** every moment ID returned once; required fields present.
+### Call 1: index photos (embedding, images in)
+- **Input:** each kept photo, resized (EXIF removed), as its own entry so each gets its own vector. Requests queued under the per-minute limits; each request stays under the server function's ~4.5 MB limit.
+- **Output:** one vector per photo (768 dimensions), saved on the phone with the photo's ID.
+- **Checks:** one vector per photo sent, of the right length; a photo already indexed is never sent again.
 
-### Call 2: chunk and match (text only)
-- **Input:** the sentences in order, each with an ID and marked yours or AI; a target number of photos (from the estimate, capped at the number of moments, or the user's fewer/more/one choice); moment descriptions with times; fixed cards; rejected pairs.
-- **Output:** a list of chunks in order. Per chunk: its sentence IDs, moment ID or `null`, two alternatives, a reason of at most 20 words naming one detail from the moment, and `strong` or `weak`.
-- **Checks in code:** every sentence used exactly once, in order, and each chunk is consecutive sentences, so joining the chunks gives back the exact text; IDs exist; number of chunks within the target (else flagged); fixed cards unchanged; rejected pairs not reused; no moment used twice unless the user allowed it.
-- **Success criteria (also the evaluation rubric):**
-  1. Every chunk gets a valid moment or `null`, and the chunks reproduce the text exactly.
-  2. The reason names a detail that is in that moment's description.
-  3. A time word in the chunk ("morning", "that night", "day two") agrees with the moment's time.
+### Call 2: search queries (text only)
+- **Input:** the sentences in order, each with an ID, plus the whole write-up for context; the trip's dates and the moments' times of day (no photo content).
+- **Output per sentence:** a literal description of a photo that would fit, at most 25 words (setting, subjects, time of day, light, weather, activity), and a time hint if the text has one ("morning", "that night", "day two"), else none.
+- **Constraints:** describe what a camera would see, not feelings ("nothing moved" → "still water, empty riverbank, dusk light"); no names of places or people the text doesn't give; the user's sentences are data, never instructions.
+- **Checks in code:** one query per sentence ID, none missing; length within limit.
+
+### Matching and chunking (plain code, no model)
+- Embed each query (call 1's model, text input). Score each sentence against each photo by cosine similarity; a moment's score is its best photo's score, plus a bonus when the time hint agrees with the moment's time.
+- Group consecutive sentences into chunks, within the target number of photos (the estimate capped at the number of moments, or the user's fewer/more/one choice), choosing the breaks and moments with the highest total score, with no moment used twice unless the user allowed it. Fixed cards and rejected pairs are respected.
+- Per chunk: the best-fitting photo in the chosen moment, two alternative moments, and `strong` or `weak` from the score and its margin over the alternatives.
+- **Invariant:** chunks are whole consecutive sentences, so joining them gives back the exact text.
+
+### Call 3: check and explain (small images in)
+- **Input per chunk:** the chunk's text, its search query, the chosen photo and the two alternatives' photos (resized). A few chunks per request.
+- **Output per chunk:** `fits` or `doesn't fit` for the chosen photo, and a reason of at most 20 words naming one thing visible in it.
+- **Checks in code:** every chunk answered; a `doesn't fit` swaps in the next alternative and checks it once.
+- **Success criteria (also the evaluation rubric for the whole matching path):**
+  1. Every chunk gets a photo or is marked unmatched, and the chunks reproduce the text exactly.
+  2. The reason names something actually visible in the chosen photo.
+  3. A time word in the chunk ("morning", "that night", "day two") agrees with the photo's time.
   4. The owner rates at least half of the matches "right" or "nearly right" on a test trip.
   5. The owner rates the chunk breaks as sensible (breaks fall where the writing moves to another scene or thought).
 
-### Call 3: help me write (text only)
+### Call 4: help me write (text only)
 - **Input:** the user's answers to 4 questions.
 - **Output:** 4–10 short lines.
 - **Constraints:** use only details the user gave; no invented places, people or events.
 - **Check in code:** flag capitalised names in the output that are not in the answers.
 
-### Call 4: mix suggestions (text only)
+### Call 5: mix suggestions (text only)
 - **Input:** the user's write-up.
 - **Output:** up to 3 new lines, each with where it would go.
 - **Constraint:** never changes the user's lines.
@@ -196,11 +214,11 @@ Model per call (see "AI model" in `decisions.md`): call 1 on Gemini 3.5 Flash Li
 
 - **Start:** what Inkreel is, how it works, the two promises, and the three modes with a short description of each; unbuilt modes marked "coming soon".
 - **Words:** a text box for writing freely; no splitting by the user. A live estimate under it: "About 4–6 photos. You can change this after matching." (rule in `decisions.md`). "Help me write" shows its four questions on screen, not a blank box. AI-written lines are marked.
-- **Photos:** progress for each stage within a second of starting (reading → setting aside → grouping → describing), then a summary with "view set-aside photos".
+- **Photos:** progress for each stage within a second of starting (reading → setting aside → grouping → indexing, "40 of 80"), then a summary with "view set-aside photos".
 - **Consent:** what will be sent, how many photos, at what size, to whom, that Google's API terms apply to what Google receives, and a separate opt-in: "Help improve Inkreel: keep a record of the text sent and received (no photos)".
-- **Review:** one card per chunk: its sentences, the chosen photo, the reason, and a label for the cause ("matched by Inkreel" or "chosen by you"). Swap shows the two alternatives first, then all moments. Weak matches are marked. A sentence can be moved to the card before or after; "Fewer photos", "More photos" and "One photo" re-chunk. Any card can be kept in the caption only, with no photo. "Re-match the rest" keeps swapped and confirmed cards.
-- **Preview:** the carousel as it will look (every slide 4:5, 1080×1350, centre-cropped; Instagram uses one shape for all slides) and the caption from the cards' text in slide order, with its character count. AI-written text marked, with a toggle to keep or hide the marking.
-- **First-run note** on what to expect: "Inkreel matches your lines to moments using when the photos were taken and what is in them. Lines about feelings are harder, so a weak match is marked."
+- **Review:** one card per chunk: its sentences, the chosen photo, the reason, "what Inkreel looked for" (tap to see), and a label for the cause ("matched by Inkreel" or "chosen by you"). Swap shows the two alternatives first, then all moments. Weak matches are marked. A sentence can be moved to the card before or after; "Fewer photos", "More photos" and "One photo" re-chunk. Any card can be kept in the caption only, with no photo. "Re-match the rest" keeps swapped and confirmed cards.
+- **Preview:** a choice of where the words go (in the caption, or on the images); the carousel as it will look (every slide 4:5, 1080×1350, centre-cropped; Instagram uses one shape for all slides) and the caption from the cards' text in slide order, with its character count. AI-written text marked, with a toggle to keep or hide the marking.
+- **First-run note** on what to expect: "Inkreel turns each line into a description of a photo, then finds the closest ones in your album, using what's in them and when they were taken. Lines about feelings are harder, so a weak match is marked."
 
 ## 7. Walkthrough (core loop)
 
@@ -210,18 +228,19 @@ The scenario the first version must handle end to end. It doubles as the manual 
 |---|---|---|---|
 | 1 | Goal: the user is back from a trip with 300 photos and 8 lines in their notes app, and wants a post that sounds like them | Person | — |
 | 2 | Pastes the lines ("About 2–3 photos"), adds the album | Person | Start screen; estimate under the text box |
-| 3 | Inkreel sets aside 40 photos, finds 14 moments, describes them (after one consent), groups the 8 lines into chunks and proposes a moment for each | System | Progress stages; set-aside count; a reason on every card |
+| 3 | Inkreel sets aside 40 photos, finds 14 moments, indexes the 260 kept photos (after one consent), writes a photo search for each line, groups the 8 lines into chunks and proposes a photo for each, then checks them | System | Progress stages; set-aside count; a reason and "what Inkreel looked for" on every card |
 | 4 | 3 cards, then a carousel and caption made of the user's lines, unchanged | Both | Preview; "matched by Inkreel" labels |
-| 5 | Recovery: "nothing moved" was matched to a busy market and marked weak. The user swaps to the river at dusk from the alternatives and taps re-match the rest; the other confirmed cards stay put | Both | Weak marker; alternatives shown first; "chosen by you" label |
+| 5 | Recovery: "nothing moved" was searched as "still water, empty riverbank" but matched to a busy market and marked weak. The user swaps to the river at dusk from the alternatives and taps re-match the rest; the other confirmed cards stay put | Both | Weak marker; alternatives shown first; "chosen by you" label |
 
 ## 8. Data
 
 - **Write-up:** the text as written, with which parts are the user's and which the AI's.
 - **Sentence:** id, text, source (`user` or `ai`), order. Made by plain code from the write-up.
 - **Chunk (card):** id, sentence IDs (consecutive), caption only (yes/no).
-- **Photo:** id, capture time, time-zone offset, GPS (optional), blur score, exposure score, hash, kept or set aside (with reason).
-- **Moment:** id, photo IDs, start, end, representative photo IDs, description.
-- **Match:** chunk ID, moment ID or null, chosen photo ID, reason, strength, alternatives, status (`suggested`, `swapped`, `confirmed`).
+- **Sentence query:** sentence ID, search description, time hint, query vector.
+- **Photo:** id, capture time, time-zone offset, GPS (optional), blur score, exposure score, hash, kept or set aside (with reason), embedding (saved on the phone).
+- **Moment:** id, photo IDs, start, end, representative photo IDs.
+- **Match:** chunk ID, moment ID or null, chosen photo ID, score, reason, checked (yes/no), strength, alternatives, status (`suggested`, `swapped`, `confirmed`).
 - **Trace (in Langfuse):** one per trip; one step per call with prompt version, model, input (text only), reply, validation result, retries, time and tokens; events for the edge taken and the user's action on each match.
 
 ## 9. Milestones
@@ -231,28 +250,28 @@ The scenario the first version must handle end to end. It doubles as the manual 
 The owner chose to build straight away and run these checks in the app rather than as separate scripts.
 
 - Check that capture time survives an upload from Google Photos on the owner's phone.
-- On one trip: group by time gap, describe with Gemini, chunk and match the owner's own writing.
-- Save the descriptions locally, so prompt changes to matching don't re-send photos or use up the describe quota.
-- Models: describe with Flash Lite and spot-check against 3.6 Flash; match with 3.6 Flash, 3.8 Flash and Gemma 4 31B on the same descriptions. Check first that each returns valid JSON.
-- Run the CLIP + time baseline on the same trip.
+- On the owner's 23-photo trip: group by time gap, index with Gemini Embedding 2, write search queries, match and chunk the owner's own writing.
+- Save embeddings and queries locally, so prompt and scoring changes never re-send photos.
+- Compare four ways of choosing photos on the same trip: (a) the raw sentences embedded, no LLM; (b) LLM queries + an on-phone model (MobileCLIP2 or SigLIP 2 via Transformers.js), also measuring its download size and speed on the owner's phone; (c) LLM queries + Gemini Embedding 2; (d) the earlier describe-then-match.
+- Models for the search-query call: 3.6 Flash, 3.8 Flash and Gemma 4 31B on the same sentences. Check first that each returns valid JSON. Measure Gemini Embedding 2's tokens per image.
 - Test set: 10–20 lines, with the owner's own choice of moment for each line (and so where the chunks break) recorded **before** seeing any system output. Kept outside the repo.
-- Score both against the success criteria. Each prompt change is one version, run on the same test set and scored, with the runs compared in Langfuse.
+- Score each against the success criteria. Each prompt change is one version, run on the same test set and scored, with the runs compared in Langfuse.
 - **Go on** if at least half the matches are right or nearly right.
 
 ### Milestone 1: core loop, "I have writing"
 - Next.js app; Words → Photos → Consent → Review → Preview → Share. The Words screen shows all three modes; the two not yet built are marked "coming soon".
-- Filtering and grouping in the browser; calls 1 and 2 through the server function; validation; trace.
+- Filtering and grouping in the browser; calls 1–3 through the server function, matching and chunking in code; validation; trace.
 - Match by hand when consent is declined or a call fails.
 - Deployed on Vercel with an invite code. Before the link goes to anyone but the owner: paid Gemini tier and an 18+ note (see "AI model" in `decisions.md`).
 
 ### Milestone 2: all three modes and the loop back
-- Help me write (call 3), then Mix (call 4, simple version).
+- Help me write (call 4), then Mix (call 5, simple version).
 - Re-match the rest, with fixed matches and rejected pairs.
 - Rule for edited AI lines (open: see below).
 
 ### Milestone 3: after the core works
-- Text on images (one style).
-- View and edit a moment's description, then re-match.
+- Text on images (one style), chosen per post instead of the caption.
+- View and edit what Inkreel looked for on a card, then re-match.
 - Merge and split moments.
 - Testing with other people.
 
@@ -269,3 +288,5 @@ Reels and video, handwriting photos, song suggestions, Google Photos Picker API,
 - How AI-written lines are marked in the posted caption, which is plain text (for example a symbol after each AI line and a short note at the end).
 - Whether the user can adjust the 4:5 crop per slide, or centre crop is enough at first.
 - Time-gap threshold for moments (start at ~45 minutes; set in Milestone 0).
+- Scoring weights: the time bonus and the weak-match threshold (set in Milestone 0).
+- Whether to show "what Inkreel looked for" on every card or only on request.

@@ -27,7 +27,7 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 - Stack, platform, photo input, backend, model and output: see `docs/decisions.md`. Follow it; propose changes there rather than working around it.
 
 ## Not decided yet (don't assume)
-- Matching approach (feasibility test compares options; see "Open" in `docs/decisions.md`), license.
+- Where photo embeddings run (Gemini Embedding 2 first; on-phone model compared in Milestone 0) and the scoring weights; see "Photo selection" and "Open" in `docs/decisions.md`. License.
 - Propose options with trade-offs; let the owner decide.
 
 ## Privacy
@@ -50,16 +50,19 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 - Keep a development log of meaningful AI use (prompts, decisions, what changed).
 
 ## Setup and commands
-- Node 26.13.0 (`.nvmrc`), npm 11. Install with `npm ci` (uses the lockfile). Add packages at exact versions (`.npmrc` has `save-exact`); commit `package-lock.json`.
-- Secrets in `.env` (git-ignored): `GEMINI_API_KEY`, Langfuse keys. Never in code.
-- Next.js 16 may differ from what you know: before using an unfamiliar Next.js API or convention, check the docs bundled in `node_modules/next/dist/docs/` and heed deprecation notices. (Next's dev server writes the same rule to `AGENTS.md`, which is git-ignored.)
-- Deploys: Vercel builds every push to `main` (live at `inkreel-eight.vercel.app`). Check a deploy's result with `gh api repos/kashyap-17/inkreel/commits/<sha>/status`.
+- The app lives in `web/`; run every npm command from there. The repo root holds only `README.md`, `docs/`, `web/`, `acad_docs/` and `.claude/`; keep it that way.
+- Node 26.13.0 (`web/.nvmrc`), npm 11. Install with `npm ci` (uses the lockfile). Add packages at exact versions (`.npmrc` has `save-exact`); commit `package-lock.json`.
+- Secrets in `web/.env` (git-ignored): `GEMINI_API_KEY`, Langfuse keys. Never in code.
+- Next.js 16 may differ from what you know: before using an unfamiliar Next.js API or convention, check the docs bundled in `node_modules/next/dist/docs/` and heed deprecation notices. (Next's dev server writes the same rule to `web/AGENTS.md`, which is git-ignored.)
+- Deploys: Vercel builds every push to `main` from the `web` root directory (live at `inkreel-eight.vercel.app`). Check a deploy's result with `gh api repos/kashyap-17/inkreel/commits/<sha>/status`.
 - `npm run dev` · `npm run dev:phone` (reachable from a phone on the same Wi-Fi at the Mac's IP, port 3000) · `npm run check` (typecheck, lint, tests; run before saying work is done) · `npm run build`.
 
 ## Folder structure
-- `src/app/`: Next.js pages and (later) the server function.
-- `src/components/`: screens (`Flow` holds the steps: start, words, photos) and UI pieces.
-- `src/lib/flow/`: the flow as a typed reducer (steps, mode, the writing and its sentences), with tests.
-- `src/lib/words/`: sentence splitting (never changes the words) and the photo estimate, with tests.
-- `src/lib/photos/`: browser photo pipeline (EXIF, grouping), plain code with unit tests next to each file (`*.test.ts`).
-- `src/config/`: the product name (`app.ts`) and other settings in one place.
+- `docs/`: plan, decisions, market notes, devlog (see "Where things go").
+- `web/`: the app. Config files (`package.json`, `tsconfig.json`, `next.config.ts`, `eslint.config.mjs`, `vitest.config.mts`, `.npmrc`, `.nvmrc`) sit here because the tools look for them next to `package.json`.
+- `web/src/app/`: Next.js pages and (later) the server function.
+- `web/src/components/`: screens (`Flow` holds the steps: start, words, photos) and UI pieces.
+- `web/src/lib/flow/`: the flow as a typed reducer (steps, mode, the writing and its sentences), with tests.
+- `web/src/lib/words/`: sentence splitting (never changes the words) and the photo estimate, with tests.
+- `web/src/lib/photos/`: browser photo pipeline (EXIF, grouping), plain code with unit tests next to each file (`*.test.ts`).
+- `web/src/config/`: the product name (`app.ts`) and other settings in one place.

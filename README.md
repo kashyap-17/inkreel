@@ -18,11 +18,19 @@ Your words stay exactly as you wrote them. Where AI adds text, it is marked so y
 
 Early development. Working so far: write or paste your words and see roughly how many photos they make, then add photos and see them grouped into moments, all on your device. Matching is next.
 
+## What's in this repository
+
+```
+web/    the app (Next.js, TypeScript)
+docs/   how it's planned and built: plan, decisions, market notes, development log
+```
+
 ## Run it locally
 
-Needs Node 26 (see `.nvmrc`).
+Needs Node 26 (see `web/.nvmrc`).
 
 ```sh
+cd web
 npm ci
 npm run dev        # http://localhost:3000
 npm run dev:phone  # also reachable from a phone on the same Wi-Fi
