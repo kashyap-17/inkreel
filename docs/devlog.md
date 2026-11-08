@@ -58,9 +58,16 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Built:** "I have writing": paste or type, split by paragraph or line (suggested automatically), join pieces, each labelled "Yours". The flow is a typed reducer (`src/lib/flow`). Tests for splitting and the reducer.
 - **Owner's note:** the landing page wording gets a proper edit once more of the product works.
 
-## Where things stand (end of 7 Nov 2026)
+## 8 Nov 2026: Inkreel does the chunking
 
-**Done:** start screen with the three modes; "I have writing" words step (pieces, split, join); photo step (EXIF time, time zone, GPS, file-date fallback, grouping into moments by time, day view). Deployed and tested on the phone (photo upload).
+- **Owner's correction:** asking the user to split their writing into one piece per photo makes no sense in a words-first product, since they write before knowing the photos. Inkreel should chunk the writing, at matching time.
+- **Decided:** the user writes freely; plain code splits sentences (each poem line is one); the matching call groups consecutive sentences into chunks and picks a moment for each; code checks the chunks rebuild the exact text. Review gets move-a-sentence and fewer/more/one photo. Recorded in `decisions.md` and `plan.md` (call 2 is now "chunk and match").
+- **Photo estimate:** the owner asked for a rough count before photos. First proposal used paragraphs; the owner preferred word count; word count alone gave a short poem one photo, so the rule mixes words and sentences (examples in `decisions.md`).
+- **Built:** words screen is now a free text box with a live "About 4–6 photos" line; split/join removed; sentence splitter and estimate with tests; checked in Chrome.
+
+## Where things stand (end of 8 Nov 2026)
+
+**Done:** start screen with the three modes; "I have writing" words step (free text, live photo estimate); photo step (EXIF time, time zone, GPS, file-date fallback, grouping into moments by time, day view). Deployed and tested on the phone (photo upload).
 
 **Waiting on the owner:** the "Photo details" counts from a real trip ("Time saved in photo" vs "Placed by file date"), which answer whether capture time survives a Google Photos upload; and which break setting splits the trip sensibly.
 

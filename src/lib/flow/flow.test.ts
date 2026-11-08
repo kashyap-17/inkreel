@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { flowReducer, initialFlow, type FlowAction, type FlowState } from "./flow";
+import { flowReducer, initialFlow, photoEstimate, type FlowAction, type FlowState } from "./flow";
 
 const run = (...actions: FlowAction[]): FlowState => actions.reduce(flowReducer, initialFlow);
 
@@ -17,38 +17,16 @@ describe("flowReducer", () => {
     expect(run({ type: "chooseMode", mode: "mix" }).step).toBe("start");
   });
 
-  it("splits text into pieces marked as the user's", () => {
-    const s = run({ type: "chooseMode", mode: "own" }, { type: "setText", text: "A\n\nB" });
-    expect(s.pieces.map((p) => [p.id, p.text, p.source])).toEqual([
-      ["w1", "A", "user"],
-      ["w2", "B", "user"],
+  it("keeps the text exactly as typed and splits it into sentences marked as the user's", () => {
+    const text = "The fort at sunrise. Nobody there.\n\nLost in the market.";
+    const s = run({ type: "setText", text });
+    expect(s.text).toBe(text);
+    expect(s.words).toBe(10);
+    expect(s.sentences.map((x) => [x.id, x.text, x.source])).toEqual([
+      ["s1", "The fort at sunrise.", "user"],
+      ["s2", "Nobody there.", "user"],
+      ["s3", "Lost in the market.", "user"],
     ]);
-  });
-
-  it("splits a single block by line, like a poem", () => {
-    const s = run({ type: "setText", text: "one\ntwo" });
-    expect(s.splitBy).toBe("line");
-    expect(s.pieces.length).toBe(2);
-  });
-
-  it("keeps the user's split choice while they keep typing", () => {
-    const s = run({ type: "setText", text: "one\ntwo" }, { type: "setSplit", splitBy: "paragraph" }, {
-      type: "setText",
-      text: "one\ntwo\nthree",
-    });
-    expect(s.splitBy).toBe("paragraph");
-    expect(s.pieces.length).toBe(1);
-  });
-
-  it("joins a piece with the next without changing the words", () => {
-    const s = run({ type: "setText", text: "A\n\nB\n\nC" }, { type: "joinWithNext", index: 0 });
-    expect(s.pieces.map((p) => p.text)).toEqual(["A\n\nB", "C"]);
-    expect(s.pieces.map((p) => p.id)).toEqual(["w1", "w2"]);
-  });
-
-  it("does nothing when joining the last piece", () => {
-    const before = run({ type: "setText", text: "A\n\nB" });
-    expect(flowReducer(before, { type: "joinWithNext", index: 1 })).toBe(before);
   });
 
   it("won't go to photos without any writing", () => {
@@ -56,5 +34,17 @@ describe("flowReducer", () => {
     expect(
       run({ type: "chooseMode", mode: "own" }, { type: "setText", text: "A" }, { type: "goTo", step: "photos" }).step,
     ).toBe("photos");
+  });
+});
+
+describe("photoEstimate", () => {
+  it("estimates from the writing and caps at the number of moments", () => {
+    const s = run({ type: "setText", text: "the river\nat dusk\nnothing moved\nnot even us\nthen bells\nthen home" });
+    expect(photoEstimate(s)).toMatchObject({ min: 2, max: 3 });
+    expect(photoEstimate(s, 1)).toMatchObject({ min: 1, max: 1 });
+  });
+
+  it("is empty before anything is written", () => {
+    expect(photoEstimate(initialFlow)).toBeNull();
   });
 });

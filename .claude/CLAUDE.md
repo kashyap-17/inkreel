@@ -1,6 +1,6 @@
 # Inkreel
 
-Inkreel turns a trip album with hundreds of photos and videos into shareable posts that still sound like the person who took them. The user adds their own thoughts or writing (or answers light prompts); Inkreel groups the photos into moments, matches each piece of writing to the right moment, explains why, and lets the user swap anything.
+Inkreel turns a trip album with hundreds of photos and videos into shareable posts that still sound like the person who took them. The user adds their own thoughts or writing (or answers light prompts); Inkreel groups the photos into moments, splits the writing into chunks that fit them, matches each chunk to the right moment, explains why, and lets the user change anything.
 
 **Start here:** the last section of `docs/devlog.md` ("Where things stand": what's done, what's waiting, what's next), then `docs/plan.md` (what to build, in milestone order; building now; Milestone 0's checks run inside the app as it's built) and `docs/decisions.md` (what's decided and why).
 
@@ -11,7 +11,7 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 - Any extra context the owner has given (e.g. in `acad_docs/`) stays out of code, comments, README, docs and product copy unless the owner explicitly asks.
 
 ## Product rules (agreed direction)
-- **The user's own words are never reworded** in "fully yours" mode. Splitting, ordering and choosing which pieces to use are allowed.
+- **The user's own words are never reworded** in "fully yours" mode. Splitting into chunks at sentence breaks, ordering, and choosing which parts to use are allowed. The user writes freely; Inkreel does the chunking (see `docs/decisions.md`).
 - **Provenance is always visible:** AI-written text is marked differently from the user's words.
 - Three authorship modes: AI writes from the user's prompts/answers · fully the user's writing · hybrid (AI suggestions accepted or rejected one by one).
 - **Match writing to moments, not individual photos.** The user picks the photo within a moment.
@@ -59,7 +59,7 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 ## Folder structure
 - `src/app/`: Next.js pages and (later) the server function.
 - `src/components/`: screens (`Flow` holds the steps: start, words, photos) and UI pieces.
-- `src/lib/flow/`: the flow as a typed reducer (steps, mode, pieces), with tests.
-- `src/lib/words/`: splitting writing into pieces (never changes the words), with tests.
+- `src/lib/flow/`: the flow as a typed reducer (steps, mode, the writing and its sentences), with tests.
+- `src/lib/words/`: sentence splitting (never changes the words) and the photo estimate, with tests.
 - `src/lib/photos/`: browser photo pipeline (EXIF, grouping), plain code with unit tests next to each file (`*.test.ts`).
 - `src/config/`: the product name (`app.ts`) and other settings in one place.

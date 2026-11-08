@@ -8,7 +8,7 @@ Inkreel turns the hundreds of photos from your trip into posts worth sharing, wi
 
 1. **Start with your words.** Paste or type your notes, a poem, anything from the trip. Or answer a few quick questions about how it felt, and Inkreel drafts lines from your answers.
 2. **Add your photos.** Inkreel groups them into the moments of your trip.
-3. **See the matches.** Each piece of writing is matched to a moment, with a short reason why.
+3. **See the matches.** Inkreel splits your writing to fit the moments and matches each part to one, with a short reason why.
 4. **Make it yours.** Swap any match, and pick the photo you like within each moment.
 5. **Share.** Export a carousel, ready to post.
 
@@ -16,7 +16,7 @@ Your words stay exactly as you wrote them. Where AI adds text, it is marked so y
 
 ## Status
 
-Early development. Working so far: paste your writing and split it into pieces, then add photos and see them grouped into moments, all on your device. Matching is next.
+Early development. Working so far: write or paste your words and see roughly how many photos they make, then add photos and see them grouped into moments, all on your device. Matching is next.
 
 ## Run it locally
 

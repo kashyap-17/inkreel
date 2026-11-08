@@ -397,54 +397,13 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
-.pieces-head {
-  justify-content: space-between;
-  margin-top: 16px;
-}
 
-.pieces {
-  list-style: none;
-  padding: 0;
-  margin: 8px 0;
-}
 
-.pieces .card {
-  margin: 8px 0;
-  padding: 12px 14px;
-}
 
-.piece-text {
-  white-space: pre-wrap;
-  margin-bottom: 8px;
-}
 
-.toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
 
-.toggle button {
-  padding: 4px 10px;
-  background: transparent;
-  color: var(--text);
-  border: 1px solid var(--line);
-  font-weight: 500;
-}
 
-.toggle button.on {
-  background: var(--text);
-  color: var(--bg);
-  border-color: var(--text);
-}
 
-button.link {
-  background: none;
-  color: var(--accent);
-  padding: 0;
-  font-weight: 500;
-  border-radius: 0;
-}
 
 button:disabled {
   opacity: 0.4;
@@ -458,4 +417,9 @@ button:disabled {
 
 .card.next {
   border-style: dashed;
+}
+
+.estimate {
+  margin: 4px 0 0;
+  font-size: 0.95rem;
 }

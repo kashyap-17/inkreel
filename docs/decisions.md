@@ -9,13 +9,32 @@ The user starts with their thoughts, feelings and words, and adds photos after. 
 The first screen asks how the user wants to tell the trip:
 - **I have writing** (fully yours): paste or type; used exactly as written.
 - **Help me write** (AI writes from your input): a few light questions about the whole trip, answered before any photos are added (a word for how it felt, the highlight, who you were with, a moment you didn't photograph). The AI writes from the answers only.
-- **Mix** (hybrid): the user's writing stays; the AI suggests extra pieces (whole new lines, never edits to the user's lines), each accepted or rejected. MVP version: a list of suggested pieces with accept/reject, not inline tracked changes.
+- **Mix** (hybrid): the user's writing stays; the AI suggests extra lines (whole new lines, never edits to the user's lines), each accepted or rejected. MVP version: a list of suggested lines with accept/reject, not inline tracked changes.
 
-All three modes end in the same thing: one write-up, as a list of pieces, each marked as the user's or the AI's. Everything after that is identical for every mode: photos → matches → preview and share. The AI never sees the photos while writing.
+All three modes end in the same thing: one write-up, with each part marked as the user's or the AI's. Everything after that is identical for every mode: photos → matches → preview and share. The AI never sees the photos while writing.
 
 - **Not chosen:** per-moment questions shown next to photos. That makes the flow photo-first, like existing AI travel journals.
 - **Build order:** fully yours first, then help me write, then mix. Help me write is how people without writing get in; mix has the most UI and the fiddliest rules, so it goes last. The first screen shows all three from the start, unbuilt ones marked "coming soon".
 - **Provenance:** AI text always looks different from the user's words, with a toggle in the preview to keep or hide the marking in the final post.
+
+## Inkreel chunks the writing, not the user (7 Nov 2026)
+
+The user writes freely and doesn't split anything. Inkreel decides where the writing breaks between photos, at matching time, because only then does it know the moments.
+
+- **How:** plain code splits the text into sentences (a line break also ends one, so each line of a poem is a sentence). The matching call groups consecutive sentences into chunks and picks a moment for each. Code checks that every sentence is used once, in order, so the chunks join back into the exact text. Words are never changed, cut or reordered.
+- **The user adjusts on the review screen:** move a sentence to the card before or after, split or join cards, or ask for fewer photos, more photos or one photo.
+- **Why:** the product is words first, so the user writes before knowing which photos they have. Asking them to split their writing into one piece per photo pushes the hard part onto them.
+- **Not chosen:** the user splitting the writing into pieces (by paragraph or line, with join) before photos. It was built first and dropped the same day.
+
+### Photo estimate on the words screen
+
+So the user has an idea of the post's size before adding photos, a live line under the text box: "About 4–6 photos. You can change this after matching."
+
+- **Rule:** count words and sentences. Fewest = the larger of words ÷ 40 and sentences ÷ 4. Most = the largest of words ÷ 25 and sentences ÷ 2. Never more than the number of sentences; at least 1; at most 20 (Instagram's limit). Round up.
+- **Examples:** a 20-word, 6-line poem → 2–3; one 50-word sentence → 1; 150 words in 9 sentences → 4–6; 600 words in 40 sentences → 15–20, with a note that Instagram allows 20.
+- **After photos are added:** capped at the number of moments. **After matching:** the real count, changed with fewer/more/one photo.
+- **Tuning:** 25, 40, 2 and 4 are starting values, adjusted on real trips.
+- **Not chosen:** paragraphs or stanzas as the guide (the owner preferred not to depend on layout); words alone (a short poem of many lines came out as one photo).
 
 ## Platform: responsive web app (7 Nov 2026)
 
@@ -131,17 +150,17 @@ Free-tier limits on the owner's project (AI Studio, 7 Nov 2026):
 
 ## Output: carousel + one caption, then text on images (7 Nov 2026)
 
-- **First:** an ordered set of photos plus one caption made of the user's pieces in slide order. Instagram allows one caption per carousel (up to 20 slides).
+- **First:** an ordered set of photos plus one caption made of the cards' text in slide order. Instagram allows one caption per carousel (up to 20 slides).
 - **Next:** an optional "text on images" toggle with one fixed style (bottom of the image, soft gradient, one font that shrinks to fit). Slides drawn in the browser with canvas.
-- **Rule:** the user's words are never shortened to fit. A piece that's too long is offered for splitting.
+- **Rule:** the user's words are never shortened to fit. A card whose text is too long for an image is offered for splitting at a sentence break.
 - **Sharing:** the phone's share sheet (Web Share API) or download. Posting to Instagram stays manual.
 - **Later:** single photo + caption, reels.
 
 ## Open
 
 - **Matching approach.** The feasibility test compares, on the same trip:
-  - A: CLIP/SigLIP embeddings + time cues, with template reasons. Free, no AI call.
-  - B: Gemini describes each moment, then one text-only call matches all pieces to the descriptions and writes the reasons (the approach in `plan.md`).
+  - A: CLIP/SigLIP embeddings + time cues, with template reasons. Free, no AI call. Chunking in plain code: choose the sentence breaks whose chunks fit their best moments most closely.
+  - B: Gemini describes each moment, then one text-only call chunks the writing, matches the chunks to the descriptions and writes the reasons (the approach in `plan.md`).
   - An embedding shortlist before B is only needed if a trip has too many moments to fit in one call, which ~50 moments do not.
 - **Time-gap threshold** for moments.
 - **Optional aesthetic score** for choosing the best photo in a moment (LAION aesthetic predictor, NIMA, MUSIQ).

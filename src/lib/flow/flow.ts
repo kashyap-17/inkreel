@@ -1,11 +1,12 @@
 // The flow as a typed state machine (a reducer). Steps follow docs/plan.md:
-// words first, then photos; matching and sharing come next.
-import { joiner, splitText, suggestSplit, type SplitBy } from "@/lib/words/pieces";
+// words first, then photos; chunking and matching come next.
+import { estimatePhotos, type PhotoEstimate } from "@/lib/words/estimate";
+import { countWords, splitSentences } from "@/lib/words/sentences";
 
 export type Mode = "own" | "help" | "mix";
 export type Step = "start" | "words" | "photos";
 
-export interface Piece {
+export interface Sentence {
   id: string;
   text: string;
   /** Who wrote it. Only "user" exists until "help me write" and "mix" are built. */
@@ -15,31 +16,18 @@ export interface Piece {
 export interface FlowState {
   step: Step;
   mode: Mode | null;
+  /** The writing exactly as the user typed or pasted it. */
   text: string;
-  splitBy: SplitBy;
-  /** True once the user picks a split themselves, so typing doesn't override it. */
-  splitChosen: boolean;
-  pieces: Piece[];
+  sentences: Sentence[];
+  words: number;
 }
 
 export type FlowAction =
   | { type: "chooseMode"; mode: Mode }
   | { type: "setText"; text: string }
-  | { type: "setSplit"; splitBy: SplitBy }
-  | { type: "joinWithNext"; index: number }
   | { type: "goTo"; step: Step };
 
-export const initialFlow: FlowState = {
-  step: "start",
-  mode: null,
-  text: "",
-  splitBy: "paragraph",
-  splitChosen: false,
-  pieces: [],
-};
-
-const toPieces = (parts: string[]): Piece[] =>
-  parts.map((text, i) => ({ id: `w${i + 1}`, text, source: "user" }));
+export const initialFlow: FlowState = { step: "start", mode: null, text: "", sentences: [], words: 0 };
 
 export function flowReducer(state: FlowState, action: FlowAction): FlowState {
   switch (action.type) {
@@ -48,31 +36,21 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
       if (action.mode !== "own") return state;
       return { ...state, mode: action.mode, step: "words" };
 
-    case "setText": {
-      const splitBy = state.splitChosen ? state.splitBy : suggestSplit(action.text);
-      return { ...state, text: action.text, splitBy, pieces: toPieces(splitText(action.text, splitBy)) };
-    }
-
-    case "setSplit":
+    case "setText":
       return {
         ...state,
-        splitBy: action.splitBy,
-        splitChosen: true,
-        pieces: toPieces(splitText(state.text, action.splitBy)),
+        text: action.text,
+        words: countWords(action.text),
+        sentences: splitSentences(action.text).map((text, i) => ({ id: `s${i + 1}`, text, source: "user" })),
       };
 
-    case "joinWithNext": {
-      const { index } = action;
-      const a = state.pieces[index];
-      const b = state.pieces[index + 1];
-      if (!a || !b) return state;
-      const texts = state.pieces.map((p) => p.text);
-      texts.splice(index, 2, `${a.text}${joiner(state.splitBy)}${b.text}`);
-      return { ...state, pieces: toPieces(texts) };
-    }
-
     case "goTo":
-      if (action.step === "photos" && state.pieces.length === 0) return state;
+      if (action.step === "photos" && state.sentences.length === 0) return state;
       return { ...state, step: action.step };
   }
+}
+
+/** The photo estimate for the current writing, optionally capped at the number of moments. */
+export function photoEstimate(state: FlowState, moments?: number): PhotoEstimate | null {
+  return estimatePhotos(state.words, state.sentences.length, moments);
 }
