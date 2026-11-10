@@ -19,9 +19,9 @@ All three modes end in the same thing: one write-up, with each part marked as th
 
 ## Inkreel chunks the writing, not the user (7 Nov 2026)
 
-The user writes freely and doesn't split anything. Inkreel decides where the writing breaks between photos, at matching time, because only then does it know the moments. (Updated 8 Nov: chunking is done in code from the photo-search scores, not by an LLM.)
+The user writes freely and doesn't split anything. Inkreel decides where the writing breaks between photos, at matching time, because only then does it know the photos. (Updated 8 Nov: chunking is done in code from the photo-search scores, not by an LLM.)
 
-- **How:** plain code splits the text into sentences (a line break also ends one, so each line of a poem is a sentence). Matching then groups consecutive sentences into chunks and picks a moment for each, using how well each sentence fits each moment (see "Photo selection" below). Chunks are built only from whole sentences in order, so they join back into the exact text. Words are never changed, cut or reordered.
+- **How:** plain code splits the text into sentences (a line break also ends one, so each line of a poem is a sentence). Matching then groups consecutive sentences into chunks and picks a photo for each, using how well each sentence fits each photo (see "Photo selection" below). Chunks are built only from whole sentences in order, so they join back into the exact text. Words are never changed, cut or reordered.
 - **The user adjusts on the review screen:** move a sentence to the card before or after, split or join cards, or ask for fewer photos, more photos or one photo.
 - **Why:** the product is words first, so the user writes before knowing which photos they have. Asking them to split their writing into one piece per photo pushes the hard part onto them.
 - **Not chosen:** the user splitting the writing into pieces (by paragraph or line, with join) before photos. It was built first and dropped the same day.
@@ -32,7 +32,7 @@ So the user has an idea of the post's size before adding photos, a live line und
 
 - **Rule:** count words and sentences. Fewest = the larger of words ÷ 40 and sentences ÷ 4. Most = the largest of words ÷ 25 and sentences ÷ 2. Never more than the number of sentences; at least 1; at most 20 (Instagram's limit). Round up.
 - **Examples:** a 20-word, 6-line poem → 2–3; one 50-word sentence → 1; 150 words in 9 sentences → 4–6; 600 words in 40 sentences → 15–20, with a note that Instagram allows 20.
-- **After photos are added:** capped at the number of moments. **After matching:** the real count, changed with fewer/more/one photo.
+- **After photos are added:** capped at the number of stacks (see "Each chunk gets a photo"). **After matching:** the real count, changed with fewer/more/one photo.
 - **Tuning:** 25, 40, 2 and 4 are starting values, adjusted on real trips.
 - **Not chosen:** paragraphs or stanzas as the guide (the owner preferred not to depend on layout); words alone (a short poem of many lines came out as one photo).
 
@@ -41,9 +41,9 @@ So the user has an idea of the post's size before adding photos, a live line und
 Proposed by the owner and checked against research. Replaces "Gemini describes 1–3 photos per moment, then a text call matches writing to the descriptions".
 
 **How it works:**
-1. **Index the photos:** one image embedding per kept photo (after blurry shots, duplicates and screenshots are set aside), with Gemini Embedding 2. Embeddings are saved on the phone (IndexedDB), so re-running matching never re-sends photos.
+1. **Index the photos:** one image embedding per stack's top pick (after blurry shots and screenshots are set aside and near-identical shots stacked), with Gemini Embedding 2. Embeddings are saved on the phone (IndexedDB), so re-running matching never re-sends photos.
 2. **Search queries (text only, Gemini 3.6 Flash):** for each sentence, with the whole write-up as context, the LLM writes a short literal description of a photo that would fit (setting, subjects, time of day, light, weather, activity) and a time hint if the text has one ("morning", "day two"). The queries are internal, never shown as the user's text; the user can see "what Inkreel looked for".
-3. **Match and chunk (plain code):** each sentence's query is embedded and scored against every photo; a moment's score is its best photo's score, plus a bonus when the time hint agrees with the moment's time. Code then groups consecutive sentences into chunks within the photo estimate, choosing the breaks and moments that fit best overall, without reusing a moment, and picks the best-fitting photo inside each moment.
+3. **Match and chunk (plain code):** each sentence's query is embedded and scored against every indexed photo, plus a bonus when the time hint agrees with the photo's time. Code then groups consecutive sentences into chunks within the photo estimate, choosing the breaks and photos that fit best overall, with at most one photo per stack.
 4. **Check and explain (small images, Gemini 3.5 Flash Lite):** for each chunk, only the chosen photo and two alternatives are sent. The model confirms or flags the match and writes the one-line reason naming something visible.
 
 **Why:**
@@ -51,13 +51,27 @@ Proposed by the owner and checked against research. Replaces "Gemini describes 1
 - **Quality:** on a hard text-to-image test (25 near-identical candidates per caption), Gemini Embedding 2 was statistically level with GPT-4.1 and Claude Sonnet 4.6 (R@1 0.80, 0.79, 0.80) ([Dutta and Kanungo 2026](https://arxiv.org/abs/2608.11343)).
 - **Feelings-text needs rewriting first:** CLIP-type models are trained on short literal captions and have shallow language understanding ([positional bias in multimodal embeddings](https://arxiv.org/pdf/2511.11216); [EMNLP 2025](https://aclanthology.org/anthology-files/pdf/emnlp/2025.emnlp-main.709.pdf)). Having an LLM rewrite the text into visual descriptions measurably improves retrieval ([VisRet](https://arxiv.org/abs/2505.20291); [GRAPE](https://www.arxiv.org/pdf/2509.23370)).
 - **Same shape as Google Photos' "Ask Photos":** vector search for candidates, then Gemini reviews only the returned photos ([Google, 2024](https://blog.google/products/photos/ask-photos-google-io-2024/)).
-- **Better than describing moments:** that sent 1–3 photos per moment to an LLM, lost detail, didn't scale, and couldn't choose the best photo within a moment.
+- **Better than describing groups of photos:** that sent 1–3 photos per group to an LLM, lost detail, didn't scale, and couldn't choose the best photo within a group.
 
-**Gemini Embedding 2** (`gemini-embedding-2`, stable): text and images in one space; PNG or JPEG; one photo per entry (several images in one entry give one merged vector); dimensions 128–3072 (768 planned). No `task_type` field; text prefixes instead, to be tested. Free-tier limits on the owner's project: 100 requests/min, 30K tokens/min, 1,000 requests/day, so about 100 photos a minute and ~1,000 photos a day. Tokens per image aren't published; measure in Milestone 0. For very large trips, index up to ~5 varied photos per moment.
+**Gemini Embedding 2** (`gemini-embedding-2`, stable): text and images in one space; PNG or JPEG; one photo per entry (several images in one entry give one merged vector); dimensions 128–3072 (768 planned). No `task_type` field; text prefixes instead, to be tested. Free-tier limits on the owner's project: 100 requests/min, 30K tokens/min, 1,000 requests/day, so about 100 photos a minute and ~1,000 photos a day. Tokens per image aren't published; measure in Milestone 0. Only top picks are indexed, so a trip needs fewer requests than it has photos.
 
 **Compared in Milestone 0** (owner's 23-photo trip, against the owner's own picks): raw text into an embedding model; LLM queries + an on-phone model (MobileCLIP2 or SigLIP 2 via Transformers.js); LLM queries + Gemini Embedding 2; the old describe-then-match. If the on-phone model is close in quality, switch to it: photos would then never leave the phone to be searched, only the few checked in step 4. Its download size and speed on the owner's phone are unknown.
 
 **Not chosen:** ColPali (built for document pages, not photos); an LLM judging every photo (cost grows with every photo); describe-then-match (above).
+
+## Each chunk gets a photo; near-identical shots are stacked (10 Nov 2026)
+
+Replaces moments (photos grouped by a time gap of about 45 minutes) as the unit of matching. Looking at a real trip, the owner found several different shots worth using within 15 minutes, so "one photo per moment" would block good pairs, and long groups meant nothing to a user. What needed preventing was a post with near-identical slides, and stacks target that directly.
+
+- **Stacks:** a photo taken within 2 minutes of the previous one that also looks nearly the same joins its stack. Each stack has a top pick (the sharpest, best exposed). "Looks nearly the same": a perceptual hash in the browser before indexing; embedding similarity once indexed. Duplicates are stacked, not set aside, so nothing disappears.
+- **Matching:** each chunk gets the best-fitting photo from the whole trip, with at most one photo per stack in a post. Two different shots from the same few minutes can both be used. Only top picks are indexed (the rest of a stack is near-identical), which also saves requests.
+- **Swap on each card:** "Other shots of this" (the rest of the stack), "Around then" (photos within 15 minutes either side), "Elsewhere in the trip" (the next-best matches).
+- **Photos screen:** what loaded ("30 photos, 12–15 Mar"), any warnings, and the photos in time order. No groups and no break setting shown.
+- **Order** of photos comes from capture time.
+- **Starting values,** tuned in Milestone 0: 2 minutes and the similarity threshold for stacks; 15 minutes for "Around then".
+- **Same idea as Google Photos:** its stacks hold "nearly identical photos of the same subject that were taken together within a short time frame", with an AI top pick the user can change and the other shots in a strip ([Google Photos Help](https://support.google.com/photos/answer/14169846); [Google, Nov 2023](https://blog.google/products-and-platforms/products/photos/google-photos-organization-updates-november-2023/)). Its Memories filter with plain rules (screenshots, low resolution) and image models (near-duplicates, blur, lighting) ([Google PAIR, 2021](https://medium.com/people-ai-research/a-snapshot-of-ai-powered-reminiscing-in-google-photos-5a05d2f2aa46)).
+- **Research on album summaries** splits an album into events and picks photos for importance, quality, variety and coverage ([event image curation patent](https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/9940544); [diverse album summarisation](https://web.cs.hacettepe.edu.tr/~erkut/publications/neural_summarization_ipta2019); [key photo selection](https://www.sciencedirect.com/science/article/abs/pii/S1047320320301954)). Those systems have no text, so they need coverage. In Inkreel the words decide what is relevant; quality and variety still apply.
+- **Not chosen:** keeping moments with a shorter gap (10–15 minutes). Simpler, but it still blocks two different good shots from the same stretch.
 
 ## Platform: responsive web app (7 Nov 2026)
 
@@ -108,7 +122,7 @@ Almost everything runs in the browser. The server only holds the AI API key and 
 - **Why:** an API key in browser code can be copied by anyone who opens the page.
 - **No database, no file storage, no accounts in the MVP.** Drafts are saved in the browser (IndexedDB). The server keeps nothing.
 - **Trade-off:** a draft can't be resumed on another device. Long-term memory (corrections, people and places) will need a database later.
-- **Access:** an invite code for testers, so the public URL can't use up the AI quota. Outside testers need the paid Gemini tier first (see "AI model").
+- **Access:** an invite code for testers, so the public URL can't use up the AI quota. Outside testers need the paid Gemini tier first (see "AI model"). The code is the `INVITE_CODE` setting on the server; without it, the deployed server refuses every model call. The consent screen asks for it once and the browser remembers it.
 
 ## Photo input: plain upload from the browser (7 Nov 2026)
 
@@ -117,23 +131,23 @@ The user picks photos with the browser's upload button. On Android 12 and later 
 - **Why:** no Google sign-in, works on every device.
 - **Not chosen for now:** the Google Photos Picker API. It needs OAuth, and its downloads have no location data either.
 - **Images only.** Videos are skipped.
-- **To verify:** that capture time survives when picking from Google Photos (first check in the feasibility test).
+- **Verified (10 Nov 2026):** 30 trip photos picked on the owner's Android phone (Chrome, system photo picker) all kept their capture time and time-zone offset; none fell back to the file date.
 
 ## Location data is a bonus, not a requirement (7 Nov 2026)
 
 Phone browsers usually strip GPS from uploaded photos (iPhone since iOS 16.4; Android removes it unless an app has a special permission). Google Photos' API strips it too.
 
-- **So:** moments are grouped by capture time. Location is used only when present.
+- **So:** photos are ordered and stacked by capture time. Location is used only when present.
+- **Confirmed (10 Nov 2026):** none of the owner's 30 photos picked in Chrome on Android had location, so in practice ordering and stacking use time alone.
 
 ## Processing in the browser (7 Nov 2026)
 
 Before anything is sent anywhere, the browser:
 
 1. Reads EXIF (capture time, time-zone offset, GPS if present).
-2. Sets aside screenshots, near-duplicates (perceptual hash) and very blurry or badly exposed photos (Laplacian variance, histogram). Set-aside photos can be viewed and restored; the only photo of a moment is never set aside.
-3. Resizes the rest to a ~1080px working copy. Originals stay on the device.
-4. Groups photos into moments: a new moment after a time gap (start at ~45 min, tune in testing) or a location jump when GPS exists; very long moments are split.
-5. Picks 1–3 representative photos per moment for display (sharpest, spread across the moment). Matching uses every kept photo (see "Photo selection").
+2. Sets aside screenshots and very blurry or badly exposed photos (Laplacian variance, histogram). Set-aside photos can be viewed and restored; a photo with nothing else taken within 15 minutes is never set aside.
+3. Saves a working copy of each photo on the device (long edge up to 2048 px, enough for a 1080×1350 slide), plus a thumbnail. Copies sent to Gemini are made from it at 512 px (indexing) and 384 px (checking). Re-encoding drops EXIF, so no copy carries location or camera details.
+4. Stacks near-identical shots (within 2 minutes and a close perceptual hash) and picks each stack's top pick (see "Each chunk gets a photo").
 
 - **Why:** free and fast. What leaves the device is resized kept photos for indexing (after consent), and later only the few photos checked per chunk. If the on-phone model wins in Milestone 0, only those few.
 
@@ -164,6 +178,7 @@ Free-tier limits on the owner's project (AI Studio, 7 Nov 2026):
 - **Budget per trip:** one embedding request per kept photo (once; saved on the phone), one or two Flash requests for queries, a few Lite requests for checking, so about 10 full trips a day on Flash. Requests are queued to stay under the per-minute limits and retried on a rate-limit error.
 - **If Flash's daily quota runs out:** the call falls back to Lite, and the trace records which model ran.
 - **Model per call is a setting,** not hard-coded, behind one small interface.
+- **As built (10 Nov 2026):** IDs `gemini-embedding-2` (768 dimensions, search text prefixed `task: search result | query:`; images sent one per entry, 6 per request), `gemini-3.6-flash` (thinking level low; a first test at the default took 41 s, low took 3–14 s) and `gemini-3.5-flash-lite` (thinking minimal). The search-query call falls back to Lite when Flash is rate-limited (429) or overloaded (503); a 503 happened in the first hour of testing. Searches are saved on the device by sentence text, so editing one sentence only re-runs what changed.
 - **Compared in Milestone 0:** Gemini 3.8 Flash and Gemma 4 31B (`gemma-4-31b-it`) against 3.6 Flash for writing search queries (text only, so Gemma's 16K tokens/min is no obstacle and its daily limit suits prompt tuning; its JSON output is undocumented, so tested first). The embedding comparison is in "Photo selection".
 - **Not chosen:** preview models (tighter limits, can be retired on two weeks' notice); Gemini 2.5 models (deprecated, redirected to newer models from 1 Dec 2026).
 - **Not available:** Claude Pro doesn't include API access.
@@ -186,6 +201,6 @@ Free-tier limits on the owner's project (AI Studio, 7 Nov 2026):
 
 - **Where photo embeddings run:** Gemini Embedding 2 (chosen to build first) or an on-phone model; decided by the Milestone 0 comparison (see "Photo selection").
 - **Scoring weights:** how much the time hint counts against the photo score, and the score below which a match is marked weak; tuned on real trips.
-- **Time-gap threshold** for moments.
-- **Optional aesthetic score** for choosing the best photo in a moment (LAION aesthetic predictor, NIMA, MUSIQ).
+- **Stack and "Around then" values:** the 2-minute window and similarity threshold for stacks; the 15-minute window for "Around then".
+- **Optional aesthetic score** for choosing a stack's top pick and breaking ties between close matches (LAION aesthetic predictor, NIMA, MUSIQ).
 - **License.**

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { estimatePhotos, formatEstimate } from "./estimate";
 
-const range = (words: number, sentences: number, moments?: number) => {
-  const e = estimatePhotos(words, sentences, moments);
+const range = (words: number, sentences: number, photos?: number) => {
+  const e = estimatePhotos(words, sentences, photos);
   return e && [e.min, e.max];
 };
 
@@ -23,7 +23,7 @@ describe("estimatePhotos limits", () => {
     expect(range(200, 2)).toEqual([2, 2]);
   });
 
-  it("is capped at the number of moments once photos are added", () => {
+  it("is capped at the number of distinct photos once photos are added", () => {
     expect(range(150, 9, 3)).toEqual([3, 3]);
   });
 

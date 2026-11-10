@@ -1,6 +1,6 @@
 # Inkreel
 
-Inkreel turns a trip album with hundreds of photos and videos into shareable posts that still sound like the person who took them. The user adds their own thoughts or writing (or answers light prompts); Inkreel groups the photos into moments, splits the writing into chunks that fit them, matches each chunk to the right moment, explains why, and lets the user change anything.
+Inkreel turns a trip album with hundreds of photos and videos into shareable posts that still sound like the person who took them. The user adds their own thoughts or writing (or answers light prompts); Inkreel splits the writing into chunks, finds the best photo for each, explains why, and lets the user change anything.
 
 **Start here:** the last section of `docs/devlog.md` ("Where things stand": what's done, what's waiting, what's next), then `docs/plan.md` (what to build, in milestone order; building now; Milestone 0's checks run inside the app as it's built) and `docs/decisions.md` (what's decided and why).
 
@@ -14,12 +14,12 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 - **The user's own words are never reworded** in "fully yours" mode. Splitting into chunks at sentence breaks, ordering, and choosing which parts to use are allowed. The user writes freely; Inkreel does the chunking (see `docs/decisions.md`).
 - **Provenance is always visible:** AI-written text is marked differently from the user's words.
 - Three authorship modes: AI writes from the user's prompts/answers · fully the user's writing · hybrid (AI suggestions accepted or rejected one by one).
-- **Match writing to moments, not individual photos.** The user picks the photo within a moment.
+- **Each chunk gets one photo, and a post never repeats a shot.** Near-identical shots taken within a couple of minutes form a stack; a post uses at most one photo per stack. Swapping offers other shots of the same scene, photos from around then, and the rest of the trip (see `docs/decisions.md`).
 - Every match shows a short reason, and every match can be swapped.
 - Positioning must lead with the real benefit: from a huge trip album to shareable posts, keeping the user's voice and personality.
 
 ## Scope (MVP first)
-- Core loop to build first: paste/type own writing → group photos into moments → match with reasons → swap → carousel output.
+- Core loop (built end to end on 10 Nov 2026): paste/type own writing → add photos (near-identical shots stacked) → consent → match with reasons → swap → carousel and caption.
 - Not in the MVP: reels, video, handwriting photos, song suggestions, Google Photos Picker API, MCP connections. (Photos from Google Photos come in through the phone's normal upload.)
 - The owner tends to over-scope. Push back on new features that aren't needed for the core loop and suggest deferring them.
 
@@ -52,7 +52,7 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 ## Setup and commands
 - The app lives in `web/`; run every npm command from there. The repo root holds only `README.md`, `docs/`, `web/`, `acad_docs/` and `.claude/`; keep it that way.
 - Node 26.13.0 (`web/.nvmrc`), npm 11. Install with `npm ci` (uses the lockfile). Add packages at exact versions (`.npmrc` has `save-exact`); commit `package-lock.json`.
-- Secrets in `web/.env` (git-ignored): `GEMINI_API_KEY`, Langfuse keys. Never in code.
+- Secrets in `web/.env` (git-ignored; `web/.env.example` lists them): `GEMINI_API_KEY`, `INVITE_CODE` (optional locally, required in production), Langfuse keys. Never in code. On Vercel, the same names go in the project's environment settings.
 - Next.js 16 may differ from what you know: before using an unfamiliar Next.js API or convention, check the docs bundled in `node_modules/next/dist/docs/` and heed deprecation notices. (Next's dev server writes the same rule to `web/AGENTS.md`, which is git-ignored.)
 - Deploys: Vercel builds every push to `main` from the `web` root directory (live at `inkreel-eight.vercel.app`). Check a deploy's result with `gh api repos/kashyap-17/inkreel/commits/<sha>/status`.
 - `npm run dev` · `npm run dev:phone` (reachable from a phone on the same Wi-Fi at the Mac's IP, port 3000) · `npm run check` (typecheck, lint, tests; run before saying work is done) · `npm run build`.
@@ -60,9 +60,13 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 ## Folder structure
 - `docs/`: plan, decisions, market notes, devlog (see "Where things go").
 - `web/`: the app. Config files (`package.json`, `tsconfig.json`, `next.config.ts`, `eslint.config.mjs`, `vitest.config.mts`, `.npmrc`, `.nvmrc`) sit here because the tools look for them next to `package.json`.
-- `web/src/app/`: Next.js pages and (later) the server function.
-- `web/src/components/`: screens (`Flow` holds the steps: start, words, photos) and UI pieces.
-- `web/src/lib/flow/`: the flow as a typed reducer (steps, mode, the writing and its sentences), with tests.
+- `web/src/app/`: the page, and `api/` routes for the model calls (`embed`, `queries`, `check`, `invite`).
+- `web/src/components/`: screens (`Flow` holds the steps and saves the draft: start, words, photos, consent, matching, review, preview) and UI pieces.
+- `web/src/lib/flow/`: the flow as a typed reducer (steps, writing, photos, matches, review edits, undo), with tests.
 - `web/src/lib/words/`: sentence splitting (never changes the words) and the photo estimate, with tests.
-- `web/src/lib/photos/`: browser photo pipeline (EXIF, grouping), plain code with unit tests next to each file (`*.test.ts`).
-- `web/src/config/`: the product name (`app.ts`) and other settings in one place.
+- `web/src/lib/photos/`: browser photo pipeline (EXIF, working copies, hash and sharpness, stacks), with unit tests next to each file (`*.test.ts`).
+- `web/src/lib/match/`: matching in the browser: time hints, chunking (plain code, tested) and the run that calls the server.
+- `web/src/lib/ai/`: request and reply schemas (Zod) shared with the server, and the browser client with retries.
+- `web/src/lib/store/`: the draft saved on the device (IndexedDB).
+- `web/src/server/`: the only code that talks to Gemini: prompts (versioned), calls, invite check.
+- `web/src/config/`: the product name (`app.ts`) and model per call (`ai.ts`).

@@ -36,7 +36,7 @@ export function StartScreen({ onChoose }: { onChoose: (mode: Mode) => void }) {
       <h1 className="hero">{APP_TAGLINE}</h1>
       <p className="lede">
         Hundreds of trip photos, and a few lines that say how it really felt. Start with your words, and Inkreel finds
-        the moments in your album that go with them, so what you post sounds like you.
+        the photos in your album that go with them, so what you post sounds like you.
       </p>
 
       <ol className="how">
@@ -44,11 +44,11 @@ export function StartScreen({ onChoose }: { onChoose: (mode: Mode) => void }) {
           <strong>Write.</strong> Your notes, a poem, or a few lines about the trip.
         </li>
         <li>
-          <strong>Add photos.</strong> The whole trip. Inkreel sorts it into moments.
+          <strong>Add photos.</strong> The whole trip, even hundreds.
         </li>
         <li>
-          <strong>Match.</strong> Each piece of writing gets a moment, with a short reason. Swap any you’d pick
-          differently.
+          <strong>Match.</strong> Inkreel splits your writing and picks a photo for each part, with a short reason.
+          Swap any you’d pick differently.
         </li>
         <li>
           <strong>Share.</strong> A carousel and caption, ready to post.

@@ -144,14 +144,6 @@ select {
   font-weight: 600;
 }
 
-.moment-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  align-items: baseline;
-  flex-wrap: wrap;
-}
-
 .thumbs {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
@@ -253,7 +245,7 @@ h2 .muted {
   font-weight: 400;
 }
 
-.photo-step > label.button {
+.photo-step > .row {
   margin: 16px 0 8px;
 }
 
@@ -397,14 +389,6 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
-
-
-
-
-
-
-
-
 button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -422,4 +406,294 @@ button:disabled {
 .estimate {
   margin: 4px 0 0;
   font-size: 0.95rem;
+}
+
+/* Top bar: name and "Start over" on every step after the start screen. */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+
+.topbar .wordmark {
+  margin: 0;
+}
+
+.button.secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
+.button.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+button.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+button.small-button {
+  padding: 6px 14px;
+  font-size: 0.875rem;
+}
+
+.text-input {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  font: inherit;
+  padding: 10px 12px;
+  margin: 4px 0 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.consent {
+  padding-left: 32px;
+}
+
+.consent li {
+  margin: 6px 0;
+}
+
+.toolbar {
+  gap: 8px;
+  margin: 12px 0 4px;
+}
+
+.toolbar > span {
+  margin-right: auto;
+}
+
+/* Review: one card per part of the writing. */
+.cards {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+}
+
+.card.match {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 560px) {
+  .card.match {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.match-photo {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.match-photo img,
+.slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.photo-button {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+}
+
+.placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+  background: var(--bg);
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  font-weight: 600;
+}
+
+.slide-num {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.words {
+  white-space: pre-wrap;
+  font-size: 1.05rem;
+  margin-bottom: 8px;
+}
+
+.why p {
+  margin: 6px 0;
+}
+
+.label {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 1px 8px;
+  margin: 0 6px 4px 0;
+  border: 1px solid var(--line);
+}
+
+.label.you {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.label.weak {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border-color: transparent;
+}
+
+.card-actions {
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+
+.photo-missing {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--line);
+}
+
+/* Swap sheet */
+dialog.sheet {
+  width: min(680px, 100vw - 16px);
+  max-height: 85vh;
+  margin: auto auto 0;
+  border: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 16px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+@media (min-width: 720px) {
+  dialog.sheet {
+    margin: auto;
+    border-radius: var(--radius);
+  }
+}
+
+dialog.sheet::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+.sheet-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  position: sticky;
+  top: -16px;
+  background: var(--surface);
+  padding: 4px 0 8px;
+}
+
+.sheet h3 {
+  font-size: 0.95rem;
+  margin: 16px 0 4px;
+}
+
+.thumbs.pick button.thumb {
+  padding: 0;
+  border-radius: 6px;
+  font-weight: 400;
+}
+
+.thumb .flag.time {
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+}
+
+.reasons {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+
+.reason-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  padding: 6px;
+  margin: 4px 0;
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-weight: 400;
+}
+
+.reason-row .thumb {
+  width: 72px;
+}
+
+/* Preview */
+.slides {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 8px;
+  margin-top: 12px;
+}
+
+.slide {
+  position: relative;
+  flex: 0 0 min(70%, 300px);
+  aspect-ratio: 4 / 5;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--line);
+  scroll-snap-align: start;
+}
+
+.caption {
+  white-space: pre-wrap;
+}
+
+.test-record {
+  margin-top: 32px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
 }

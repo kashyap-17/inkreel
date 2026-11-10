@@ -76,18 +76,54 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 
 - **Owner's request:** the root was cluttered with config and generated files. The app and all its config moved into `web/` (the tools need their config next to `package.json`, so the folder moves as a whole). Root now: `README.md`, `docs/`, `web/`, `acad_docs/`, `.claude/`. Vercel's root directory set to `web`.
 
-## Where things stand (end of 8 Nov 2026)
+## 10 Nov 2026: real-trip photo check
 
-**Done:** start screen with the three modes; "I have writing" words step (free text, live photo estimate); photo step (EXIF time, time zone, GPS, file-date fallback, grouping into moments by time, day view). Deployed and tested on the phone (photo upload).
+- **Owner's result:** 30 trip photos picked on the owner's Android phone (Chrome, system photo picker): capture time 30, time zone 30, file date 0, location 0. Capture time survives the Google Photos route; location never arrives, as expected. Recorded in `decisions.md`.
+- **Picker albums:** the owner's Google Photos albums didn't show in the picker's Collections tab. Researched: the system photo picker shows cloud albums only when Google Photos is set as its "cloud media app" (picker settings), on Android 12+ with a current Google System Update; albums made in other apps (Samsung Gallery, Snapseed) never show. Inkreel can't change what the system picker lists. Not yet confirmed on the owner's phone.
 
-**Waiting on the owner:** the "Photo details" counts from a real trip ("Time saved in photo" vs "Placed by file date"), which answer whether capture time survives a Google Photos upload; and which break setting splits the trip sensibly.
+## 10 Nov 2026: moments replaced by stacks
 
-**Next, in order:**
-1. In the browser: set aside blurry, duplicate and screenshot photos; resize copies to send.
-2. Consent screen (one approval per trip).
-3. Server function with the Gemini key, invite code and Zod-checked replies. Call 1 (index photos, Gemini Embedding 2, saved on the phone), call 2 (search queries, 3.6 Flash), matching and chunking in code, call 3 (check and explain, Flash Lite). Needs `GEMINI_API_KEY` in `.env` and in Vercel's environment settings.
-4. Milestone 0 comparison on the owner's 23 photos (four ways of choosing photos), with the owner's picks recorded first.
-5. Review screen (swap, pick photo, move a sentence, fewer/more photos, weak matches), then preview and share (caption or text on images).
-6. Langfuse tracing once calls exist (no Langfuse account yet).
+- **Owner's challenge:** with moments as the matching unit, how does a 30-photo trip become 3–4 photos for a poem, and what does a moment give the user? On a real trip the owner saw several good, different shots within 15 minutes, so "one photo per moment" would block good pairs, and long groups meant nothing to a user.
+- **Agreed:** the writing sets the count; each chunk gets the best photo from the whole trip; the only rule is no near-identical slides. Before deciding, the owner asked how Google Photos does it: its stacks hold near-identical shots taken within a short time, with an AI top pick the user can change, and Memories filter with rules and image models. Album-summary research balances quality, variety and coverage; Inkreel doesn't need coverage because the words decide what is relevant.
+- **Decided:** stacks (within 2 minutes and a close perceptual hash; sharpest is the top pick; duplicates stacked, not set aside); only top picks are indexed; at most one photo per stack in a post; swap offers next picks, other shots of this, around then (±15 min), elsewhere. No groups shown on the photos screen. Recorded in `decisions.md` ("Each chunk gets a photo"), `plan.md` and `CLAUDE.md`.
 
-**Also open:** landing page wording (owner will edit once more works; keep the headline "Your camera roll, your story."); keep the draft (words, photos) when the page reloads; tests for photos from two phones with and without time zones, the HEIC full-file read, and reading many photos at once; optional shorter address such as `inkreel-app.vercel.app`.
+## 10 Nov 2026: the core loop, end to end
+
+- **Owner's request:** only the first two screens existed; build the whole flow with the draft saved, so it can be tested end to end, then check copy and flow against the agreed principles before calling it done.
+- **Built:**
+  - Server: four routes (`embed`, `queries`, `check`, `invite`); Gemini through `@google/genai` 2.31.0 with structured JSON output; Zod checks on every request and reply; invite code (`INVITE_CODE`, required in production); rate-limit and overload errors passed back with a wait time.
+  - Browser: each photo decoded once into a 2048 px working copy and a thumbnail (EXIF dropped), with a difference hash and a sharpness score; stacks; IndexedDB for the draft, photos, photo vectors and saved searches; the phone's back button moves between steps; "Start over" deletes everything.
+  - Matching: index top picks (6 per request, 2 requests at a time), search queries, scores with a time bonus, chunking by dynamic programming over sentence breaks, at most one photo per stack, check and explain for the chosen photo and two alternatives. Failure paths from the plan: partial index, searches falling back to the sentences, unchecked matches showing what Inkreel looked for, a photo the check rejects replaced by an alternative it accepts, match by hand.
+  - Screens: photos (summary, stacked count, warnings, details), consent (what is sent, to whom, invite code, match by hand), matching progress with the first-run note, review (photo, words, reason, labels, weak marker, swap sheet, move a line, caption only, fewer/more photos, undo), preview (4:5 slides, caption with count, share sheet, copy caption, download).
+  - Card text is an exact slice of the writing, so a poem's line breaks survive in the caption.
+- **Tested:** 61 unit tests; production build; the whole flow clicked through in Chrome with stock macOS wallpapers as photos (no personal photos), including reload on every step, back and forward, swap, fewer and undo, move a line, preview, download, start over, and match by hand (no requests sent).
+- **Found while testing:**
+  - Flash's search-query call took 3 to 42 seconds for the same four lines; thinking level set to low. One "high demand" 503 from Flash in the first hour; the call now falls back to Lite on 503 as well as 429.
+  - A photo set spanning more than a year failed the request check; the trip length sent is now capped.
+  - The EXIF reader was being pulled into the server render through the matching code; canvas helpers split out so it loads only when photos are picked.
+  - Reasons read "The image shows…"; check prompt v2 asks for a plain phrase about the scene.
+
+## 10 Nov 2026: test record
+
+- **Owner's question:** can sessions be reviewed? The draft is saved on the device, but nothing reaches a server, so the developer can't see what happened on a trip.
+- **Checked:** AI Studio's Logs feature records Gemini calls, but needs a billing-enabled project, doesn't log embedding calls, can't see the scores, chunking or user changes (all on the phone), and would store the small photo copies sent to the check call for up to 55 days.
+- **Built:** "Download test record" under the review and preview screens: one JSON file with the writing, each sentence's search, models and prompt versions, photo details (name, time, size, hash, sharpness, stack; no photos, no coordinates), scores, verdicts, cards, caption and a log of the user's actions. The owner sends it with feedback. Langfuse stays the plan for testers other than the owner.
+
+## Where things stand (10 Nov 2026)
+
+**Done:** the core loop for "I have writing", end to end: words with a live photo estimate → photos (working copies, stacks) → consent → matching with reasons → review (swap, move a line, caption only, fewer/more, undo) → preview and share. The draft is saved on the device and survives a reload; the back button moves between steps. Not yet deployed with the new code.
+
+**Before the next deploy (owner):** in Vercel's project settings, add `GEMINI_API_KEY` and `INVITE_CODE` (any phrase you'll type on the consent screen). Without `INVITE_CODE` the deployed server refuses every model call. Locally `INVITE_CODE` is optional; `web/.env.example` lists the names.
+
+**Waiting on the owner:** a real-trip test on the phone (does the chunking and choice of photos make sense; are the reasons right; is anything confusing); the owner's review of the app and its copy; whether Google Photos albums appear after choosing Google Photos as the picker's cloud media app.
+
+**Not built yet (in the plan):**
+- Setting aside blurry, badly exposed and screenshot photos ("view set-aside photos"); HEIC conversion when the browser can't decode it.
+- Reordering and dropping cards (caption only covers dropping a photo); "one photo" as a single tap; keeping swapped cards when photos are added after matching (adding photos currently re-matches everything).
+- Langfuse tracing and the consent opt-in for it (no Langfuse account yet). Until then, the test record covers the owner's own tests.
+- Milestone 0 comparison (four ways of choosing photos) with the owner's picks recorded first; tuning the stack window, hash threshold, time bonus, balance and weak-match margin.
+- Help me write and Mix (Milestone 2); text on images (Milestone 3).
+
+**Known limits:** the search-query call on Flash can take up to ~40 seconds; consent is asked again when the writing or photos change after matching; the product name appears as plain text in the screens' copy (rename by search and replace in `web/src/components`).
+
+**Also open:** landing page wording (owner will edit; keep "Your camera roll, your story."); tests for photos from two phones with and without time zones, the HEIC full-file read, and many photos at once; optional shorter address such as `inkreel-app.vercel.app`.

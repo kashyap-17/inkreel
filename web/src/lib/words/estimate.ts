@@ -17,11 +17,12 @@ export interface PhotoEstimate {
   overLimit: boolean;
 }
 
-export function estimatePhotos(words: number, sentences: number, maxMoments?: number): PhotoEstimate | null {
+/** `maxPhotos`: once photos are added, the number of distinct photos (stacks) available. */
+export function estimatePhotos(words: number, sentences: number, maxPhotos?: number): PhotoEstimate | null {
   if (words === 0 || sentences === 0) return null;
   const fewest = Math.ceil(Math.max(words / ESTIMATE.wordsPerPhotoMax, sentences / ESTIMATE.sentencesPerPhotoMax));
   const most = Math.ceil(Math.max(words / ESTIMATE.wordsPerPhotoMin, sentences / ESTIMATE.sentencesPerPhotoMin));
-  const cap = Math.min(sentences, MAX_PHOTOS, maxMoments ?? Infinity);
+  const cap = Math.min(sentences, MAX_PHOTOS, maxPhotos ?? Infinity);
   const max = Math.max(1, Math.min(most, cap));
   const min = Math.max(1, Math.min(fewest, max));
   return { min, max, overLimit: most > MAX_PHOTOS && sentences > MAX_PHOTOS };
