@@ -8,6 +8,7 @@ import { buildStacks, sortByTime } from "@/lib/photos/stacks";
 import type { PhotoFailure } from "@/lib/photos/prepare";
 import type { PhotoRecord } from "@/lib/photos/types";
 import { deletePhotos, putPhoto } from "@/lib/store/db";
+import { sendPhotoReport } from "@/lib/report";
 import { logEvent } from "@/lib/store/events";
 import { formatEstimate } from "@/lib/words/estimate";
 import { forgetPhotoUrls, Photo } from "./Photo";
@@ -20,7 +21,7 @@ type Status =
   | { kind: "idle" }
   | { kind: "reading"; done: number; total: number }
   | { kind: "done"; videos: number; failures: PhotoFailure[]; repeats: number }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string; detail: string };
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -37,11 +38,19 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
     const seen = new Set(existing.map((p) => `${p.fileName}|${p.takenAt}`));
     setStatus({ kind: "reading", done: 0, total: images.length });
 
+    const added: PhotoRecord[] = [];
+    const failures: PhotoFailure[] = [];
+    // What failed goes to the server log (no photos or file names), so it can be fixed without a screenshot.
+    const report = (error?: string) =>
+      sendPhotoReport({
+        picked: images.length,
+        added: added.length,
+        error,
+        failures: failures.map(({ type, format, sizeMB, reason }) => ({ type, format, sizeMB, reason })),
+      });
     try {
       // Loaded on first use: keeps the EXIF reader and canvas code out of the first page load.
       const { preparePhoto } = await import("@/lib/photos/prepare");
-      const added: PhotoRecord[] = [];
-      const failures: PhotoFailure[] = [];
       let repeats = 0;
       let done = 0;
       let next = 0;
@@ -56,9 +65,20 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
             const key = `${prepared.record.fileName}|${prepared.record.takenAt}`;
             if (seen.has(key)) repeats++;
             else {
-              seen.add(key);
-              await putPhoto({ id, ...prepared });
-              added.push(prepared.record);
+              try {
+                await putPhoto({ id, ...prepared });
+                seen.add(key);
+                added.push(prepared.record);
+              } catch (e) {
+                if (e instanceof Error && e.name === "QuotaExceededError") throw e;
+                failures.push({
+                  fileName: file.name,
+                  type: file.type || "(none)",
+                  format: "unknown",
+                  sizeMB: Math.round(file.size / 100_000) / 10,
+                  reason: `saving · ${e instanceof Error ? `${e.name}: ${e.message}` : String(e)}`,
+                });
+              }
             }
           }
           setStatus({ kind: "reading", done: ++done, total: images.length });
@@ -69,6 +89,7 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
       // Kept in the session log, so the test record shows why photos were left out.
       if (failures.length) {
         logEvent({ at: new Date().toISOString(), action: "photosFailed", detail: { count: failures.length, failures } });
+        report();
       }
 
       if (replace && photos.length) {
@@ -79,12 +100,16 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
       dispatch({ type: "setPhotos", photos: sorted, stacks: buildStacks(sorted) });
       setStatus({ kind: "done", videos: all.length - images.length, failures, repeats });
     } catch (e) {
+      const detail = e instanceof Error ? `${e.name}: ${e.message}`.slice(0, 400) : String(e).slice(0, 400);
+      logEvent({ at: new Date().toISOString(), action: "photosError", detail: { error: detail } });
+      report(detail);
       setStatus({
         kind: "error",
         message:
           e instanceof Error && e.name === "QuotaExceededError"
             ? "This device is out of space for more photos. Try fewer photos."
             : "Something went wrong reading those photos. Try again.",
+        detail,
       });
     }
   }
@@ -123,7 +148,19 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
             </div>
           </div>
         )}
-        {status.kind === "error" && <p className="warn">{status.message}</p>}
+        {status.kind === "error" && (
+          <>
+            <div className="warn">
+              <p>{status.message}</p>
+              <p className="small">Error details were sent to fix this: file types, sizes and errors, no photos or file names.</p>
+              <details>
+                <summary>Details</summary>
+                <p className="small failures">{status.detail}</p>
+              </details>
+            </div>
+            <TestRecordLink state={state} />
+          </>
+        )}
         {status.kind === "done" && status.failures.length > 0 && (
           <>
             <Failures failures={status.failures} />
@@ -252,6 +289,7 @@ function Failures({ failures }: { failures: PhotoFailure[] }) {
           ` ${heic === failures.length ? (heic === 1 ? "It’s" : "They’re all") : `${heic} are`} HEIC (“high efficiency”) photos, which this browser can’t read yet.`}
         {other > 0 && heic > 0 && ` ${other} failed for another reason.`}
       </p>
+      <p className="small">Error details were sent to fix this: file types, sizes and errors, no photos or file names.</p>
       <details>
         <summary>Details</summary>
         <ul className="small failures">

@@ -28,54 +28,80 @@ export interface PhotoFailure {
 }
 
 const describeError = (e: unknown) =>
-  e instanceof Error ? `${e.name}: ${e.message}`.slice(0, 200) : String(e).slice(0, 200);
+  (e instanceof Error ? (e.name === "Error" ? e.message : `${e.name}: ${e.message}`) : String(e)).slice(0, 400);
 
-/**
- * Decodes with the image's own orientation. If that fails, decodes the way an <img> thumbnail
- * does (which phones can show even when the first way fails) and shrinks it straight to the
- * working size, so no second full-size copy is held in memory.
- */
-async function decode(file: File): Promise<ImageBitmap> {
+/** Draws a decoded <img> shrunk to working size, so no second full-size copy is held. */
+function shrink(img: HTMLImageElement): Promise<ImageBitmap> {
+  const { width, height } = fit(img.naturalWidth, img.naturalHeight, FULL_PX);
+  const c = canvas(width, height);
+  context(c).drawImage(img, 0, 0, width, height);
+  return createImageBitmap(c);
+}
+
+async function viaImg(blob: Blob): Promise<ImageBitmap> {
+  const url = URL.createObjectURL(blob);
   try {
-    return await createImageBitmap(file, { imageOrientation: "from-image" });
-  } catch (first) {
-    const url = URL.createObjectURL(file);
-    try {
-      const img = new Image();
-      img.src = url;
-      await img.decode();
-      const { width, height } = fit(img.naturalWidth, img.naturalHeight, FULL_PX);
-      const c = canvas(width, height);
-      context(c).drawImage(img, 0, 0, width, height);
-      return await createImageBitmap(c);
-    } catch (second) {
-      throw new Error(`${describeError(first)} | fallback: ${describeError(second)}`);
-    } finally {
-      URL.revokeObjectURL(url);
-    }
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    return await shrink(img);
+  } finally {
+    URL.revokeObjectURL(url);
   }
 }
 
+/**
+ * Tries three ways to open a photo: directly with its own orientation; the way an <img>
+ * thumbnail does (phones can show some photos the first way can't); and from a copy read
+ * into memory first (for files the phone hands over in a form that can only be read once in full).
+ */
+async function decode(file: File): Promise<ImageBitmap> {
+  const errors: string[] = [];
+  const attempts: [string, () => Promise<ImageBitmap>][] = [
+    ["direct", () => createImageBitmap(file, { imageOrientation: "from-image" })],
+    ["thumbnail", () => viaImg(file)],
+    ["in memory", async () => viaImg(new Blob([await file.arrayBuffer()], { type: file.type || "image/jpeg" }))],
+  ];
+  for (const [name, attempt] of attempts) {
+    try {
+      return await attempt();
+    } catch (e) {
+      errors.push(`${name}: ${describeError(e)}`);
+    }
+  }
+  throw new Error(errors.join(" | "));
+}
+
+async function formatOf(file: File): Promise<ImageFormat> {
+  try {
+    return sniffFormat(new Uint8Array(await file.slice(0, 32).arrayBuffer()));
+  } catch {
+    return "unknown";
+  }
+}
+
+/** Never throws: anything that goes wrong becomes a failure saying which step it was. */
 export async function preparePhoto(
   file: File,
   id: string,
 ): Promise<{ ok: true; photo: PreparedPhoto } | { ok: false; failure: PhotoFailure }> {
+  const fail = async (step: string, e: unknown) => ({
+    ok: false as const,
+    failure: {
+      fileName: file.name,
+      type: file.type || "(none)",
+      format: await formatOf(file),
+      sizeMB: Math.round(file.size / 100_000) / 10,
+      reason: `${step} · ${describeError(e)}`,
+    },
+  });
+
   const meta = await readPhotoMeta(file, id);
   let bitmap: ImageBitmap;
   try {
     bitmap = await decode(file);
   } catch (e) {
-    const head = new Uint8Array(await file.slice(0, 32).arrayBuffer());
-    return {
-      ok: false,
-      failure: {
-        fileName: file.name,
-        type: file.type || "(none)",
-        format: sniffFormat(head),
-        sizeMB: Math.round(file.size / 100_000) / 10,
-        reason: describeError(e),
-      },
-    };
+    return fail("opening", e);
   }
   try {
     const small = fit(bitmap.width, bitmap.height, SHARPNESS_PX);
@@ -87,8 +113,11 @@ export async function preparePhoto(
       hash: differenceHash(greyAt(bitmap, 9, 8)),
       sharpness: laplacianVariance(greyAt(bitmap, small.width, small.height), small.width, small.height),
     };
-    const [full, thumb] = [await resizeToJpeg(bitmap, FULL_PX, 0.85), await resizeToJpeg(bitmap, THUMB_PX, 0.75)];
+    const full = await resizeToJpeg(bitmap, FULL_PX, 0.85);
+    const thumb = await resizeToJpeg(bitmap, THUMB_PX, 0.75);
     return { ok: true, photo: { record, full, thumb } };
+  } catch (e) {
+    return fail("making copies", e);
   } finally {
     bitmap.close();
   }
