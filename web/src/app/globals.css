@@ -697,3 +697,9 @@ dialog.sheet::backdrop {
   border-top: 1px solid var(--line);
   padding-top: 12px;
 }
+
+.failures {
+  padding-left: 18px;
+  margin: 4px 0 0;
+  word-break: break-word;
+}

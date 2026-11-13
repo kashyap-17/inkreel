@@ -5,18 +5,21 @@ import { photoEstimate, type FlowAction, type FlowState } from "@/lib/flow/flow"
 import { isPhoto } from "@/lib/photos/files";
 import { formatDay } from "@/lib/photos/format";
 import { buildStacks, sortByTime } from "@/lib/photos/stacks";
+import type { PhotoFailure } from "@/lib/photos/prepare";
 import type { PhotoRecord } from "@/lib/photos/types";
 import { deletePhotos, putPhoto } from "@/lib/store/db";
+import { logEvent } from "@/lib/store/events";
 import { formatEstimate } from "@/lib/words/estimate";
 import { forgetPhotoUrls, Photo } from "./Photo";
 import { StepBar } from "./StepBar";
+import { TestRecordLink } from "./TestRecordLink";
 
 const SHOWN = 60;
 
 type Status =
   | { kind: "idle" }
   | { kind: "reading"; done: number; total: number }
-  | { kind: "done"; videos: number; unreadable: number; repeats: number }
+  | { kind: "done"; videos: number; failures: PhotoFailure[]; repeats: number }
   | { kind: "error"; message: string };
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -38,7 +41,7 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
       // Loaded on first use: keeps the EXIF reader and canvas code out of the first page load.
       const { preparePhoto } = await import("@/lib/photos/prepare");
       const added: PhotoRecord[] = [];
-      let unreadable = 0;
+      const failures: PhotoFailure[] = [];
       let repeats = 0;
       let done = 0;
       let next = 0;
@@ -46,19 +49,27 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
         while (next < images.length) {
           const file = images[next++]!;
           const id = `p${crypto.randomUUID().slice(0, 8)}`;
-          const prepared = await preparePhoto(file, id);
-          if (!prepared) unreadable++;
-          else if (seen.has(`${prepared.record.fileName}|${prepared.record.takenAt}`)) repeats++;
+          const result = await preparePhoto(file, id);
+          if (!result.ok) failures.push(result.failure);
           else {
-            seen.add(`${prepared.record.fileName}|${prepared.record.takenAt}`);
-            await putPhoto({ id, ...prepared });
-            added.push(prepared.record);
+            const prepared = result.photo;
+            const key = `${prepared.record.fileName}|${prepared.record.takenAt}`;
+            if (seen.has(key)) repeats++;
+            else {
+              seen.add(key);
+              await putPhoto({ id, ...prepared });
+              added.push(prepared.record);
+            }
           }
           setStatus({ kind: "reading", done: ++done, total: images.length });
         }
       };
-      // Three at a time: full-size photos are decoded in memory.
-      await Promise.all(Array.from({ length: Math.min(3, images.length) }, worker));
+      // Two at a time: full-size photos are decoded in memory, and phones run out with more.
+      await Promise.all(Array.from({ length: Math.min(2, images.length) }, worker));
+      // Kept in the session log, so the test record shows why photos were left out.
+      if (failures.length) {
+        logEvent({ at: new Date().toISOString(), action: "photosFailed", detail: { count: failures.length, failures } });
+      }
 
       if (replace && photos.length) {
         forgetPhotoUrls();
@@ -66,7 +77,7 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
       }
       const sorted = sortByTime([...existing, ...added]);
       dispatch({ type: "setPhotos", photos: sorted, stacks: buildStacks(sorted) });
-      setStatus({ kind: "done", videos: all.length - images.length, unreadable, repeats });
+      setStatus({ kind: "done", videos: all.length - images.length, failures, repeats });
     } catch (e) {
       setStatus({
         kind: "error",
@@ -113,6 +124,12 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
           </div>
         )}
         {status.kind === "error" && <p className="warn">{status.message}</p>}
+        {status.kind === "done" && status.failures.length > 0 && (
+          <>
+            <Failures failures={status.failures} />
+            <TestRecordLink state={state} />
+          </>
+        )}
         {status.kind === "done" && photos.length === 0 && (
           <p className="warn">None of those could be used. Inkreel works with photos for now, not videos.</p>
         )}
@@ -134,12 +151,6 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
                 <p className="warn">
                   {plural(byFileDate, "photo has", "photos have")} no saved time, so{" "}
                   {byFileDate === 1 ? "it’s" : "they’re"} placed by file date and marked “no time”.
-                </p>
-              )}
-              {status.kind === "done" && status.unreadable > 0 && (
-                <p className="warn">
-                  {plural(status.unreadable, "photo", "photos")} couldn’t be opened in this browser (often HEIC
-                  photos on a computer), so {status.unreadable === 1 ? "it was" : "they were"} left out.
                 </p>
               )}
               {status.kind === "done" && status.repeats > 0 && (
@@ -225,6 +236,34 @@ function PickButton({
         }}
       />
     </label>
+  );
+}
+
+/** What couldn't be opened and why, so the cause is visible (and can be sent with feedback). */
+function Failures({ failures }: { failures: PhotoFailure[] }) {
+  const heic = failures.filter((f) => f.format === "heic").length;
+  const other = failures.length - heic;
+  return (
+    <div className="warn">
+      <p>
+        {plural(failures.length, "photo", "photos")} couldn’t be opened in this browser, so{" "}
+        {failures.length === 1 ? "it was" : "they were"} left out.
+        {heic > 0 &&
+          ` ${heic === failures.length ? (heic === 1 ? "It’s" : "They’re all") : `${heic} are`} HEIC (“high efficiency”) photos, which this browser can’t read yet.`}
+        {other > 0 && heic > 0 && ` ${other} failed for another reason.`}
+      </p>
+      <details>
+        <summary>Details</summary>
+        <ul className="small failures">
+          {failures.slice(0, 40).map((f, i) => (
+            <li key={`${f.fileName}-${i}`}>
+              {f.fileName} · {f.format.toUpperCase()} (labelled {f.type}) · {f.sizeMB} MB · {f.reason}
+            </li>
+          ))}
+          {failures.length > 40 && <li>…and {failures.length - 40} more</li>}
+        </ul>
+      </details>
+    </div>
   );
 }
 
