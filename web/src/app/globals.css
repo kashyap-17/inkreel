@@ -692,6 +692,35 @@ dialog.sheet::backdrop {
   white-space: pre-wrap;
 }
 
+.caption-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.caption-head h2 {
+  margin: 0;
+}
+
+.share {
+  margin-top: 24px;
+}
+
+.share button.wide {
+  width: 100%;
+}
+
+.share .status {
+  margin-top: 12px;
+}
+
+.share-help {
+  margin: 12px 0;
+  padding-left: 20px;
+}
+
 .test-record {
   margin-top: 32px;
   border-top: 1px solid var(--line);

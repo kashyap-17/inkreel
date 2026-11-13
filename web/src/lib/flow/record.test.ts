@@ -55,11 +55,11 @@ function matched() {
 describe("buildTestRecord", () => {
   it("records the writing, searches, scores, cards and caption", () => {
     const record = buildTestRecord(matched(), {
-      searches: [{ query: "a river at dusk", partOfDay: "evening", day: 0 }, null],
+      searches: [{ readings: ["a river at dusk", "still water"], partOfDay: "evening", day: 0 }, null],
       events: [],
       now: new Date("2026-11-10T12:00:00Z"),
     });
-    expect(record.writing.sentences[0]!.search?.query).toBe("a river at dusk");
+    expect(record.writing.sentences[0]!.search?.readings).toEqual(["a river at dusk", "still water"]);
     expect(record.matching?.scores[0]![0]).toBe(0.1235);
     expect(record.cards[0]!.text).toBe("The river at dusk.\nNothing moved.");
     expect(record.caption).toBe("The river at dusk.\nNothing moved.");

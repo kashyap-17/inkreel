@@ -8,7 +8,7 @@ export const MODELS = {
 } as const;
 
 /** Prompt versions (prompts in src/server/prompts.ts). Bump on every prompt change. */
-export const PROMPT_VERSIONS = { queries: "queries-v1", check: "check-v2" } as const;
+export const PROMPT_VERSIONS = { queries: "queries-v2", check: "check-v3" } as const;
 
 export const EMBED_DIMENSIONS = 768;
 

@@ -22,6 +22,11 @@ export interface ProposedChunk {
 export const MATCHING = {
   /** Pull towards chunks of similar length, so one chunk doesn't swallow the poem. */
   balanceWeight: 0.02,
+  /**
+   * Cost of a chunk running across a blank line. Strong enough that stanzas and paragraphs stay
+   * whole when the photo count allows it, since the writer's own breaks are the best places to cut.
+   */
+  breakWeight: 0.1,
   /** A match is weak when it beats the typical photo by less than this. */
   weakMargin: 0.04,
   alternatives: 2,
@@ -52,12 +57,21 @@ const median = (xs: number[]) => {
 };
 
 /**
- * Splits `sentenceCount` sentences into `target` chunks (fewer if there aren't enough
- * sentences or stacks) and matches each chunk to a photo.
+ * Splits the sentences into `target` chunks (fewer if there aren't enough sentences or stacks)
+ * and matches each chunk to a photo. `breaks[i]` is true when a blank line follows sentence i;
+ * chunks prefer to end there.
  */
-export function chunkAndMatch(scores: number[][], candidates: Candidate[], target: number): ProposedChunk[] {
+export function chunkAndMatch(
+  scores: number[][],
+  candidates: Candidate[],
+  target: number,
+  breaks: boolean[] = [],
+): ProposedChunk[] {
   const n = scores.length;
   if (n === 0) return [];
+  // crossed[j]: blank lines after sentences 0..j-1, so a chunk i..j-1 crosses crossed[j-1] - crossed[i].
+  const crossed = new Int32Array(n + 1);
+  for (let i = 0; i < n; i++) crossed[i + 1] = crossed[i]! + (breaks[i] ? 1 : 0);
   const distinctStacks = new Set(candidates.map((c) => c.stackId)).size;
   const k = Math.max(1, Math.min(target, n, distinctStacks || n));
   const scorer = makeRangeScorer(scores, candidates.length);
@@ -73,7 +87,8 @@ export function chunkAndMatch(scores: number[][], candidates: Candidate[], targe
       const means = scorer(i, j);
       const best = means.length ? Math.max(...means) : 0;
       const off = (j - i - ideal) / ideal;
-      v = best - MATCHING.balanceWeight * off * off;
+      const inside = crossed[j - 1]! - crossed[i]!;
+      v = best - MATCHING.balanceWeight * off * off - MATCHING.breakWeight * inside;
       memo.set(key, v);
     }
     return v;

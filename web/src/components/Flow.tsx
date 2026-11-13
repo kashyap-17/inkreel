@@ -2,19 +2,19 @@
 
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { APP_NAME } from "@/config/app";
-import { AiError } from "@/lib/ai/client";
+import { AiError, sendTestRecord } from "@/lib/ai/client";
 import {
   canGoTo,
+  defaultTarget,
   flowReducer,
   initialFlow,
-  photoEstimate,
   verdictKey,
   type FlowAction,
   type FlowState,
   type Step,
 } from "@/lib/flow/flow";
 import { describeAction } from "@/lib/flow/record";
-import { checkCards, defaultTarget, matchByHand } from "@/lib/match/run";
+import { checkCards, matchByHand } from "@/lib/match/run";
 import { clearAll, kvGet, kvSet } from "@/lib/store/db";
 import { logEvent } from "@/lib/store/events";
 import { ConsentStep } from "./ConsentStep";
@@ -24,7 +24,8 @@ import { PhotoStep } from "./PhotoStep";
 import { PreviewStep } from "./PreviewStep";
 import { ReviewStep } from "./ReviewStep";
 import { StartScreen } from "./StartScreen";
-import { TestRecordLink } from "./TestRecordLink";
+import { currentRecord, TestRecordLink } from "./TestRecordLink";
+import { readTesterMode, TesterContext } from "./Tester";
 import { WordsStep } from "./WordsStep";
 
 const DRAFT_KEY = "draft";
@@ -44,6 +45,8 @@ export function Flow() {
     if (event) logEvent(event);
   }, []);
   const [loaded, setLoaded] = useState(false);
+  // Read on the client only; the first render (before the draft loads) looks the same either way.
+  const [tester] = useState(() => typeof window !== "undefined" && readTesterMode());
   const [checking, setChecking] = useState(false);
   const [consentMessage, setConsentMessage] = useState<string | null>(null);
 
@@ -129,6 +132,19 @@ export function Flow() {
       .finally(() => setChecking(false));
   }, [uncheckedKey]);
 
+  // Tester mode: the test record goes to the server log each time a different post reaches the
+  // preview, so it can be read there without downloading a file.
+  const sentRecord = useRef("");
+  const postKey =
+    state.step === "preview"
+      ? state.cards.map((c) => `${c.sentenceIds.join(",")}:${c.captionOnly ? "-" : (c.photoId ?? "")}`).join("|")
+      : "";
+  useEffect(() => {
+    if (!tester || !postKey || sentRecord.current === postKey || state.match?.byHand !== false) return;
+    sentRecord.current = postKey;
+    void currentRecord(latest.current).then(sendTestRecord, () => {});
+  }, [tester, postKey, state.match?.byHand]);
+
   const startOver = useCallback(async () => {
     if (!window.confirm("Start over? This deletes your writing, photos and matches from this device.")) return;
     forgetPhotoUrls();
@@ -137,7 +153,7 @@ export function Flow() {
   }, []);
 
   const byHand = useCallback(() => {
-    const target = state.target ?? defaultTarget(photoEstimate(state));
+    const target = state.target ?? defaultTarget(state);
     const { match, cards } = matchByHand(state, target);
     dispatch({ type: "matched", match, cards, target });
   }, [state, dispatch]);
@@ -151,6 +167,7 @@ export function Flow() {
 
   const hasDraft = state.text.length > 0 || state.photos.length > 0;
   return (
+    <TesterContext.Provider value={tester}>
     <main>
       {state.step !== "start" && (
         <header className="topbar">
@@ -173,7 +190,8 @@ export function Flow() {
       )}
       {state.step === "review" && <ReviewStep state={state} dispatch={dispatch} checking={checking} />}
       {state.step === "preview" && <PreviewStep state={state} dispatch={dispatch} />}
-      {(state.step === "review" || state.step === "preview") && <TestRecordLink state={state} />}
+      {tester && (state.step === "review" || state.step === "preview") && <TestRecordLink state={state} />}
     </main>
+    </TesterContext.Provider>
   );
 }

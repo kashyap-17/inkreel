@@ -7,13 +7,18 @@ import { buildTestRecord } from "@/lib/flow/record";
 import { savedSearches } from "@/lib/match/run";
 import { loadEvents } from "@/lib/store/events";
 
-/** Saves a file with what Inkreel did on this trip and what was changed, to send with feedback. */
+/** The test record for the current state, with the saved searches and the action log. */
+export async function currentRecord(state: FlowState, now = new Date()) {
+  return buildTestRecord(state, { searches: await savedSearches(state), events: await loadEvents(), now });
+}
+
+/** Tester mode: saves a file with what Inkreel did on this trip and what was changed. */
 export function TestRecordLink({ state }: { state: FlowState }) {
   const [saved, setSaved] = useState(false);
 
   async function download() {
     const now = new Date();
-    const record = buildTestRecord(state, { searches: await savedSearches(state), events: await loadEvents(), now });
+    const record = await currentRecord(state, now);
     const blob = new Blob([JSON.stringify(record, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -32,7 +37,7 @@ export function TestRecordLink({ state }: { state: FlowState }) {
       </button>{" "}
       {saved
         ? "Saved. Send the file with your feedback."
-        : "Your writing, what Inkreel searched for, the scores and matches, and your changes. Photo names and times, but no photos."}
+        : "Tester mode. Your writing, the searches, scores and matches, and your changes. Photo names and times, no photos."}
     </p>
   );
 }

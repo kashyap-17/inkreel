@@ -55,7 +55,9 @@ export interface MatchData {
   fixed: Record<string, string>;
   /** Which model wrote the photo searches (Flash, or Lite as the fallback); absent if none ran. */
   queriesModel?: string;
-  /** Set when some photos couldn't be indexed or searches fell back to the sentences themselves. */
+  /** True when the searches couldn't be written and the sentences themselves were searched. */
+  searchesFellBack?: boolean;
+  /** Shown to the user, e.g. when some photos couldn't be indexed. */
   notes: string[];
 }
 
@@ -191,23 +193,29 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
     case "swap": {
       const card = state.cards.find((c) => c.id === action.cardId);
       if (!card) return state;
-      const match = state.match && {
-        ...state.match,
-        fixed: { ...state.match.fixed, [card.sentenceIds.join(",")]: action.photoId },
-      };
+      // A post never repeats a shot: if another slide shows this scene, the two slides trade photos.
+      const stackOf = stackLookup(state);
+      const other = state.cards.find(
+        (c) => c.id !== card.id && !c.captionOnly && c.photoId && stackOf(c.photoId) === stackOf(action.photoId),
+      );
+      const fixed = { ...state.match?.fixed, [card.sentenceIds.join(",")]: action.photoId };
+      if (other) {
+        if (card.photoId) fixed[other.sentenceIds.join(",")] = card.photoId;
+        else delete fixed[other.sentenceIds.join(",")];
+      }
+      const match = state.match && { ...state.match, fixed };
+      const chosen = (c: Card, photoId: string | null): Card => ({
+        ...c,
+        photoId,
+        status: "swapped",
+        textChanged: false,
+        captionOnly: false,
+        alternatives: c.photoId ? [c.photoId, ...c.alternatives.filter((p) => p !== photoId)] : c.alternatives,
+      });
       return withHistory(
         { ...state, match },
         state.cards.map((c) =>
-          c.id === action.cardId
-            ? {
-                ...c,
-                photoId: action.photoId,
-                status: "swapped" as const,
-                textChanged: false,
-                captionOnly: false,
-                alternatives: c.photoId ? [c.photoId, ...c.alternatives.filter((p) => p !== action.photoId)] : c.alternatives,
-              }
-            : c,
+          c.id === card.id ? chosen(c, action.photoId) : c.id === other?.id ? chosen(c, card.photoId) : c,
         ),
       );
     }
@@ -241,7 +249,7 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
 
     case "setTarget": {
       if (!state.match) return state;
-      const cards = proposeCards(state.match, action.target, stackLookup(state));
+      const cards = proposeCards(state.match, action.target, stackLookup(state), stanzaBreaks(state));
       return { ...withHistory(state, cards), target: action.target };
     }
 
@@ -277,10 +285,11 @@ export function proposeCards(
   match: MatchData,
   target: number,
   stackOf: (photoId: string) => string = (id) => id,
+  breaks: boolean[] = [],
 ): Card[] {
   const scores = match.byHand ? match.sentenceIds.map(() => []) : match.scores;
   const candidates = match.byHand ? [] : match.candidates;
-  const chunks = chunkAndMatch(scores, candidates, target);
+  const chunks = chunkAndMatch(scores, candidates, target, breaks);
 
   const cards: Card[] = chunks.map((chunk, i) => {
     const sentenceIds = match.sentenceIds.slice(chunk.start, chunk.end);
@@ -320,6 +329,40 @@ export function photoEstimate(state: FlowState): PhotoEstimate | null {
   return estimatePhotos(state.words, state.sentences.length, state.stacks.length || undefined);
 }
 
+/** The estimate from the writing alone, before photos are counted in. */
+export function wordsEstimate(state: Pick<FlowState, "words" | "sentences">): PhotoEstimate | null {
+  return estimatePhotos(state.words, state.sentences.length);
+}
+
+/** `breaks[i]` is true when a blank line follows sentence i: a stanza or paragraph ends there. */
+export function stanzaBreaks(state: Pick<FlowState, "text" | "sentences">): boolean[] {
+  return state.sentences
+    .slice(0, -1)
+    .map((s, i) => /\n[^\S\n]*\n/.test(state.text.slice(s.end, state.sentences[i + 1]!.start)));
+}
+
+/**
+ * True when the user added no more distinct photos than the writing needs: Inkreel then uses
+ * every one and only decides which part each goes with.
+ */
+export function usesEveryPhoto(state: FlowState): boolean {
+  const estimate = wordsEstimate(state);
+  return estimate !== null && state.stacks.length > 0 && state.stacks.length <= estimate.max;
+}
+
+/**
+ * The photo count to aim for: every photo when there are only a few; else one per stanza when
+ * the writing has stanzas and that fits the estimate; else the middle of the estimate.
+ */
+export function defaultTarget(state: FlowState): number {
+  if (usesEveryPhoto(state)) return state.stacks.length;
+  const estimate = photoEstimate(state);
+  if (!estimate) return 1;
+  const stanzas = stanzaBreaks(state).filter(Boolean).length + 1;
+  if (stanzas > 1 && stanzas >= estimate.min && stanzas <= estimate.max) return stanzas;
+  return Math.round((estimate.min + estimate.max) / 2);
+}
+
 /** Splits the writing into sentences and records where each one sits in it. */
 export function locateSentences(text: string): Sentence[] {
   let cursor = 0;
@@ -341,7 +384,12 @@ export function cardText(state: Pick<FlowState, "text" | "sentences">, card: Pic
   return first && last ? state.text.slice(first.start, last.end) : "";
 }
 
-/** Where the words go in the post: every card's text in order, as one caption. */
-export function captionOf(state: FlowState): string {
-  return state.cards.map((c) => cardText(state, c)).join("\n\n");
+/**
+ * The caption: the writing exactly as the user wrote it, line breaks and stanzas included.
+ * Every sentence is always in some card, in order, so this is also every card's text.
+ */
+export function captionOf(state: Pick<FlowState, "text" | "sentences">): string {
+  const first = state.sentences[0];
+  const last = state.sentences[state.sentences.length - 1];
+  return first && last ? state.text.slice(first.start, last.end) : "";
 }

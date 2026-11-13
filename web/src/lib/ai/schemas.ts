@@ -23,10 +23,16 @@ export const QueriesRequest = z.object({
 });
 export type QueriesRequest = z.infer<typeof QueriesRequest>;
 
-/** One search per sentence: a literal description of a photo that would fit, and a time hint. */
+/**
+ * Searches for one sentence: up to three readings of it as a photo (the first close to the
+ * words, the others different scenes it could mean), and time hints.
+ */
 export const SentenceQuery = z.object({
   id: z.string(),
-  query: z.string().min(1).max(400),
+  readings: z
+    .array(z.string().min(1).max(400))
+    .min(1)
+    .transform((r) => r.slice(0, 3)),
   partOfDay: z.enum(PART_OF_DAY),
   /** Day of the trip the sentence names (1 = first day), or 0 when it doesn't say. */
   day: z.number().int().min(0),

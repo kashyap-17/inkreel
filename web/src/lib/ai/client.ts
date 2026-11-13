@@ -87,3 +87,13 @@ export async function verifyInvite(code: string): Promise<boolean> {
   }
   return true;
 }
+
+/** Tester mode: sends the test record to the server log. Failures are ignored. */
+export function sendTestRecord(record: object): void {
+  void fetch("/api/record", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-invite-code": savedInvite() },
+    body: JSON.stringify({ record }),
+    keepalive: false,
+  }).catch(() => {});
+}

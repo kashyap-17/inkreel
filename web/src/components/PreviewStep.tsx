@@ -4,16 +4,21 @@ import { useEffect, useState } from "react";
 import { APP_NAME } from "@/config/app";
 import { captionOf, type FlowAction, type FlowState } from "@/lib/flow/flow";
 import { getPhoto } from "@/lib/store/db";
+import { logEvent } from "@/lib/store/events";
 import { Photo } from "./Photo";
 import { StepBar } from "./StepBar";
+import { SwapSheet } from "./SwapSheet";
 
 const MAX_SLIDES = 20; // Instagram's carousel limit
 const MAX_CAPTION = 2200; // Instagram's caption limit
 
 export function PreviewStep({ state, dispatch }: { state: FlowState; dispatch: (a: FlowAction) => void }) {
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useState<{ text: string; copyAgain?: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
-  const slides = state.cards.filter((c) => c.photoId && !c.captionOnly).map((c) => c.photoId!);
+  const [swapping, setSwapping] = useState<string | null>(null);
+  const slideCards = state.cards.filter((c) => c.photoId && !c.captionOnly);
+  const slides = slideCards.map((c) => c.photoId!);
+  const swapCard = state.cards.find((c) => c.id === swapping);
   const caption = captionOf(state);
   const tooMany = slides.length > MAX_SLIDES;
   const tooLong = caption.length > MAX_CAPTION;
@@ -36,6 +41,9 @@ export function PreviewStep({ state, dispatch }: { state: FlowState; dispatch: (
   const ready = files && files.key === slideKey && "files" in files ? files.files : null;
   const prepError = files && files.key === slideKey && "error" in files ? files.error : null;
 
+  const log = (action: string, detail: Record<string, unknown> = {}) =>
+    logEvent({ at: new Date().toISOString(), action, detail });
+
   async function copyCaption(): Promise<boolean> {
     try {
       await navigator.clipboard.writeText(caption);
@@ -45,92 +53,147 @@ export function PreviewStep({ state, dispatch }: { state: FlowState; dispatch: (
     }
   }
 
+  async function copyOnly() {
+    const ok = await copyCaption();
+    log("copyCaption", { ok });
+    setStatus(ok ? { text: "Caption copied." } : { text: "Couldn’t copy. Select the caption and copy it." });
+  }
+
   async function share(files: File[]) {
     setBusy(true);
+    let copied = false;
     try {
       if (navigator.canShare?.({ files })) {
         // Both start straight away, inside the tap; the caption can't travel with the photos.
         const copying = copyCaption();
         const sharing = navigator.share({ files });
-        const copied = await copying;
+        copied = await copying;
         await sharing;
-        setStatus(copied ? "Caption copied. Paste it when you post." : "Copy the caption below when you post.");
-      } else {
-        const copied = await copyCaption();
-        download(files);
+        log("share", { result: "shared", captionCopied: copied });
         setStatus(
-          `This browser can’t share photos directly, so they were downloaded.${copied ? " Caption copied." : ""}`,
+          copied
+            ? { text: "Caption copied. Paste it when you post.", copyAgain: true }
+            : { text: "Copy the caption above, then paste it when you post.", copyAgain: true },
         );
+      } else {
+        copied = await copyCaption();
+        download(files);
+        log("share", { result: "downloaded", captionCopied: copied });
+        setStatus({
+          text: `This browser can’t share photos directly, so they were saved instead.${copied ? " Caption copied." : ""}`,
+          copyAgain: true,
+        });
       }
     } catch (e) {
-      if (e instanceof DOMException && e.name === "AbortError") setStatus(null);
-      else setStatus(e instanceof Error ? e.message : "Sharing didn’t work. Try downloading instead.");
+      const cancelled = e instanceof DOMException && e.name === "AbortError";
+      log("share", { result: cancelled ? "cancelled" : "failed", captionCopied: copied });
+      setStatus(cancelled ? null : { text: "Sharing didn’t work. Save the photos instead, then post them." });
     } finally {
       setBusy(false);
     }
   }
-
 
   return (
     <>
       <StepBar current={3} />
       <h1>Your post</h1>
       <p className="lede">
-        {slides.length} {slides.length === 1 ? "photo" : "photos"}, cropped to 4:5 as Instagram shows them, with your
-        words as the caption.
+        {slides.length} {slides.length === 1 ? "photo" : "photos"}, sized for Instagram, in the order of your writing.
+        Your words go in the caption.
       </p>
 
       <div className="slides" aria-label="Carousel">
-        {slides.map((id, i) => (
-          <div key={`${id}-${i}`} className="slide">
-            <Photo id={id} size="full" alt={`Slide ${i + 1}`} />
+        {slideCards.map((card, i) => (
+          <div key={card.id} className="slide">
+            <button
+              type="button"
+              className="photo-button"
+              onClick={() => setSwapping(card.id)}
+              aria-label={`Change photo ${i + 1}`}
+            >
+              <Photo id={card.photoId!} size="full" alt={`Slide ${i + 1}`} />
+            </button>
             <span className="slide-num">{i + 1}</span>
           </div>
         ))}
       </div>
+      <p className="small muted">Tap a photo to change it.</p>
       {tooMany && (
         <p className="warn">Instagram allows {MAX_SLIDES} photos in a post. Go back and drop some, or ask for fewer.</p>
       )}
 
-      <h2>Caption</h2>
-      <p className="caption card">{caption}</p>
-      <p className={`small ${tooLong ? "warn" : "muted"}`}>
-        {caption.length.toLocaleString("en-GB")} of {MAX_CAPTION.toLocaleString("en-GB")} characters
-        {tooLong && ". Instagram cuts captions at this length, so drop some parts from the caption."}
-      </p>
-
-      <div className="row actions">
-        <button type="button" disabled={busy || tooMany || !ready} onClick={() => ready && void share(ready)}>
-          {ready || prepError ? "Share photos" : "Preparing photos…"}
-        </button>
-        <button
-          type="button"
-          className="secondary"
-          disabled={busy}
-          onClick={() => void copyCaption().then((ok) => setStatus(ok ? "Caption copied." : "Couldn’t copy. Select the caption and copy it."))}
-        >
-          Copy caption
-        </button>
-        <button
-          type="button"
-          className="secondary"
-          disabled={busy || tooMany || !ready}
-          onClick={() => {
-            if (!ready) return;
-            download(ready);
-            setStatus("Photos downloaded.");
+      {swapCard && (
+        <SwapSheet
+          state={state}
+          card={swapCard}
+          onClose={() => setSwapping(null)}
+          onPick={(photoId) => {
+            dispatch({ type: "swap", cardId: swapCard.id, photoId });
+            setSwapping(null);
           }}
-        >
-          Download photos
+        />
+      )}
+
+      <div className="caption-head">
+        <h2>Caption</h2>
+        <button type="button" className="secondary small-button" disabled={busy} onClick={() => void copyOnly()}>
+          Copy
         </button>
       </div>
-      {prepError && <p className="warn">{prepError}</p>}
-      {status && (
-        <p className="small" aria-live="polite">
-          {status}
+      <p className="caption card">{caption}</p>
+      {caption.length > MAX_CAPTION - 200 && (
+        <p className={`small ${tooLong ? "warn" : "muted"}`}>
+          {caption.length.toLocaleString("en-GB")} of {MAX_CAPTION.toLocaleString("en-GB")} characters
+          {tooLong && ". Instagram cuts captions at this length, so shorten your writing."}
         </p>
       )}
-      <p className="small muted">Inkreel never posts for you. Share the photos to Instagram, then paste the caption.</p>
+
+      <div className="share">
+        <button
+          type="button"
+          className="wide"
+          disabled={busy || tooMany || !ready}
+          onClick={() => ready && void share(ready)}
+        >
+          {ready || prepError ? "Share" : "Preparing photos…"}
+        </button>
+        <p className="small muted">
+          Opens your phone’s share options: Instagram, WhatsApp, anything. Your caption is copied too, ready to paste.
+        </p>
+        {prepError && <p className="warn">{prepError}</p>}
+        {status && (
+          <p className="card small status" aria-live="polite">
+            {status.text}
+            {status.copyAgain && (
+              <>
+                {" "}
+                <button type="button" className="link" onClick={() => void copyOnly()}>
+                  Copy again
+                </button>
+              </>
+            )}
+          </p>
+        )}
+        <ol className="small muted share-help">
+          <li>Tap Share and choose Instagram.</li>
+          <li>When Instagram asks for a caption, tap and hold the caption box, then tap Paste.</li>
+        </ol>
+        <p className="small">
+          <button
+            type="button"
+            className="link"
+            disabled={busy || tooMany || !ready}
+            onClick={() => {
+              if (!ready) return;
+              download(ready);
+              log("savePhotos");
+              setStatus({ text: "Photos saved to your phone." });
+            }}
+          >
+            Save the photos instead
+          </button>
+        </p>
+      </div>
 
       <div className="row actions">
         <button type="button" className="secondary" onClick={() => dispatch({ type: "goTo", step: "review" })}>

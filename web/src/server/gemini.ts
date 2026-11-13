@@ -80,22 +80,35 @@ function vectorsOf(embeddings: { values?: number[] }[] | undefined, expected: nu
   return vectors;
 }
 
+/** Gemini took longer than the call allows. */
+class TimeoutError extends Error {}
+
 async function generateJson(
   model: string,
   parts: Part[],
   schema: object,
   thinkingLevel: ThinkingLevel,
+  timeoutMs?: number,
 ): Promise<unknown> {
-  const res = await ai().models.generateContent({
-    model,
-    contents: [{ role: "user", parts }],
-    config: {
-      responseMimeType: "application/json",
-      responseJsonSchema: schema,
-      temperature: 0.4,
-      thinkingConfig: { thinkingLevel },
-    },
-  });
+  let res;
+  try {
+    res = await ai().models.generateContent({
+      model,
+      contents: [{ role: "user", parts }],
+      config: {
+        responseMimeType: "application/json",
+        responseJsonSchema: schema,
+        temperature: 0.4,
+        thinkingConfig: { thinkingLevel },
+        ...(timeoutMs ? { abortSignal: AbortSignal.timeout(timeoutMs) } : {}),
+      },
+    });
+  } catch (e) {
+    if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
+      throw new TimeoutError(`${model} took longer than ${timeoutMs} ms`);
+    }
+    throw e;
+  }
   const text = res.text;
   if (!text) throw new ServerError(502, "Gemini returned an empty reply.");
   try {
@@ -105,13 +118,20 @@ async function generateJson(
   }
 }
 
-/** Call 2: a literal photo description and a time hint for every sentence. */
+/**
+ * How long Flash gets to write the searches before Lite takes over. Flash usually answers in
+ * 5–30 s; the route stops at 60 s, so this leaves Lite time to answer.
+ */
+const QUERIES_TIMEOUT_MS = 35_000;
+
+/** Call 2: up to three photo descriptions and time hints for every sentence. */
 export async function searchQueries(req: QueriesRequest): Promise<QueriesReply> {
   const prompt = queriesPrompt(req.sentences, req.tripDays);
   const ids = req.sentences.map((s) => s.id);
 
   const attempt = async (model: string, extra = ""): Promise<QueriesReply> => {
-    const raw = await generateJson(model, [{ text: prompt + extra }], QUERIES_SCHEMA, ThinkingLevel.LOW);
+    const timeout = model === MODELS.queries ? QUERIES_TIMEOUT_MS : undefined;
+    const raw = await generateJson(model, [{ text: prompt + extra }], QUERIES_SCHEMA, ThinkingLevel.LOW, timeout);
     const parsed = SentenceQuery.array().safeParse((raw as { queries?: unknown })?.queries);
     if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "bad shape");
     const byId = new Map(parsed.data.map((q) => [q.id, q]));
@@ -133,9 +153,9 @@ export async function searchQueries(req: QueriesRequest): Promise<QueriesReply> 
   try {
     return await run(MODELS.queries);
   } catch (e) {
-    // Flash's free daily quota is small and it is sometimes overloaded (503); fall back to Lite
-    // rather than fail the trip. The reply says which model ran.
-    if (e instanceof ApiError && (e.status === 429 || e.status === 503)) {
+    // Flash's free daily quota is small, it is sometimes overloaded (503), and it can be slow;
+    // fall back to Lite rather than fail the trip. The reply says which model ran.
+    if ((e instanceof ApiError && (e.status === 429 || e.status === 503)) || e instanceof TimeoutError) {
       try {
         return await run(MODELS.queriesFallback);
       } catch (e2) {

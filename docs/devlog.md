@@ -117,21 +117,27 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Error reports:** testing by screenshot was too slow, and the server never sees photo problems (photos are opened on the phone). When photos fail, the photos screen now sends a short report to `/api/report` (browser, file types, sizes, which step failed and the errors; no photos or file names), written to Vercel's runtime log as `[photo-report]`. The screen says it was sent. Sent before consent, so revisit before testers other than the owner (opt-in, or fold into Langfuse).
 - **Not done:** a HEIC converter. Only needed if failures still show HEIC; the owner won't change camera settings, so a converter in the browser would be the fix (library licence to decide).
 
-## Where things stand (10 Nov 2026)
+## 13 Nov 2026: first full phone test, and what changed
 
-**Done:** the core loop for "I have writing", end to end: words with a live photo estimate → photos (working copies, stacks) → consent → matching with reasons → review (swap, move a line, caption only, fewer/more, undo) → preview and share. The draft is saved on the device and survives a reload; the back button moves between steps. Not yet deployed with the new code.
+- **The test:** a 6-line poem in three couplets and 30 London photos on the owner's phone. All 30 photos went in (the memory fix above was the cause, not HEIC); 28 distinct shots; matching took 9 seconds; 3 photos picked, none swapped. No location on any photo: Android's photo picker removes it, so on the web matching uses time and content only. The test record and screenshots were reviewed with the owner.
+- **Found:** the split ignored the couplets (cut after line 5); the caption added a blank line inside a couplet; the search invented details ("punk concert … stage", "ferris wheel") and read "days of delight" as morning; reasons described the photo without saying why it fits; user-facing copy carried engineering details (512 px, near-identical shots, photo details, error text); the share screen had three equal buttons and didn't say the caption was copied; the change-photo sheet could put the same photo in two slides.
+- **Owner's calls:** several readings per line rather than one stricter search (owner's idea); "Share" rather than "Share to Instagram", since WhatsApp and other apps are real uses; captions only for the MVP, saying so in the app, with text on images reconsidered after real posts; no "choose a new photo from the phone" in the change-photo sheet (scope); measuring quality is open, for now the rate of photo changes and feedback.
+- **Changed:** chunks prefer the writer's blank lines and default to one photo per stanza; every photo is used when the user adds no more than the estimate; the caption is the writing exactly as written; up to three readings per sentence with the best match counting (queries-v2) and reasons tied to a quoted phrase (check-v3); Flash gets 35 s for the searches, then Lite; tester mode (`?tester=1`) holds the engineering details and sends the test record to the server log; new copy on the photos, consent, review and preview screens; one "Share" button with a paste guide, Copy on the caption, "Save the photos instead" as a link; tapping a slide on the preview changes its photo; choosing a photo that's in another slide makes the two trade places.
+- **Checked:** 74 tests; the full flow in Chrome with a three-stanza poem through matching, the check, the preview, Copy (clipboard matches the caption), changing a slide (slides trade places, no repeat), and the test record arriving in the server log. A prompt example taken from the owner's poem was copied back by Gemini word for word, so the examples were replaced with ones not in any test writing.
 
-**Before the next deploy (owner):** in Vercel's project settings, add `GEMINI_API_KEY` and `INVITE_CODE` (any phrase you'll type on the consent screen). Without `INVITE_CODE` the deployed server refuses every model call. Locally `INVITE_CODE` is optional; `web/.env.example` lists the names.
+## Where things stand (13 Nov 2026)
 
-**Waiting on the owner:** a real-trip test on the phone (does the chunking and choice of photos make sense; are the reasons right; is anything confusing); the owner's review of the app and its copy; whether Google Photos albums appear after choosing Google Photos as the picker's cloud media app.
+**Done:** the core loop for "I have writing", end to end and deployed: words with a live photo estimate → photos (working copies, stacks) → consent → matching with reasons → review (swap, move a line, caption only, fewer/more, undo) → preview (change a photo, share, copy). The draft is saved on the device. Tested once on the owner's phone with a real trip.
+
+**Waiting on the owner:** a second phone test of this round's changes (same poem and photos is fine, with `?tester=1` once so the record reaches the log); whether the caption pasted in Instagram after Share; the owner's own picks for the London poem, if a fuller comparison is wanted later.
 
 **Not built yet (in the plan):**
 - Setting aside blurry, badly exposed and screenshot photos ("view set-aside photos"); HEIC conversion when the browser can't decode it.
 - Reordering and dropping cards (caption only covers dropping a photo); "one photo" as a single tap; keeping swapped cards when photos are added after matching (adding photos currently re-matches everything).
-- Langfuse tracing and the consent opt-in for it (no Langfuse account yet). Until then, the test record covers the owner's own tests.
-- Milestone 0 comparison (four ways of choosing photos) with the owner's picks recorded first; tuning the stack window, hash threshold, time bonus, balance and weak-match margin.
-- Help me write and Mix (Milestone 2); text on images (Milestone 3).
+- Langfuse tracing and the consent opt-in for it (no Langfuse account yet). Until then, tester mode and the server log cover the owner's own tests.
+- Milestone 0 comparison with the owner's picks recorded first; tuning the stack window, hash threshold, time bonus, balance, blank-line cost and weak-match margin.
+- Help me write and Mix (Milestone 2); text on images (to reconsider after real posts).
 
-**Known limits:** the search-query call on Flash can take up to ~40 seconds; consent is asked again when the writing or photos change after matching; the product name appears as plain text in the screens' copy (rename by search and replace in `web/src/components`).
+**Known limits:** the search call on Flash takes about 25 s (up to ~57 s seen; Lite takes over after 35 s); consent is asked again when the writing or photos change after matching; the product name appears as plain text in the screens' copy (rename by search and replace in `web/src/components`); Vercel keeps runtime logs for about 30 minutes.
 
-**Also open:** landing page wording (owner will edit; keep "Your camera roll, your story."); tests for photos from two phones with and without time zones, the HEIC full-file read, and many photos at once; optional shorter address such as `inkreel-app.vercel.app`.
+**Also open:** landing page wording (owner will edit; keep "Your camera roll, your story."); tests for photos from two phones with and without time zones and many photos at once; optional shorter address such as `inkreel-app.vercel.app`; the site has no icon (favicon 404).

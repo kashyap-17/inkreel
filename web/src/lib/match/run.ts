@@ -12,6 +12,7 @@ import {
   cardText,
   proposeCards,
   stackLookup,
+  stanzaBreaks,
   verdictKey,
   type Card,
   type FlowState,
@@ -29,14 +30,18 @@ export type Stage =
   | { kind: "check"; done: number; total: number };
 
 interface SavedQuery {
-  query: string;
+  /** Up to three readings of the sentence as a photo; a photo only needs to match one. */
+  readings: string[];
   partOfDay: PartOfDay;
   day: number;
-  vector?: number[];
+  vectors?: number[][];
 }
 
-/** Searches are saved by sentence text, so editing one sentence only re-runs that search. */
-const QUERIES_KEY = "queries";
+/**
+ * Searches are saved by sentence text, so editing one sentence only re-runs that search.
+ * The key carries the search format: searches saved in an older format are not reused.
+ */
+const QUERIES_KEY = "queries-v2";
 
 async function pool<T>(items: T[], concurrency: number, work: (item: T) => Promise<void>) {
   let next = 0;
@@ -115,19 +120,27 @@ async function sentenceSearches(
       model = reply.model;
       reply.queries.forEach((q, i) => {
         const text = state.sentences[i]!.text;
-        if (!saved[text]) saved[text] = { query: q.query, partOfDay: q.partOfDay, day: q.day };
+        if (!saved[text]) saved[text] = { readings: q.readings, partOfDay: q.partOfDay, day: q.day };
       });
     } catch (e) {
       if (e instanceof AiError && e.status === 401) throw e;
       fellBack = true;
-      for (const s of state.sentences) saved[s.text] ??= { query: s.text, partOfDay: "none", day: 0 };
+      for (const s of state.sentences) saved[s.text] ??= { readings: [s.text], partOfDay: "none", day: 0 };
     }
   }
 
-  const needVectors = state.sentences.map((s) => saved[s.text]!).filter((q) => !q.vector);
-  for (const batch of chunked(needVectors, 100)) {
-    const { vectors } = await embed({ kind: "texts", texts: batch.map((q) => q.query) });
-    batch.forEach((q, i) => (q.vector = vectors[i]));
+  // Every reading still without a vector, embedded together in as few calls as possible.
+  const need = state.sentences.map((s) => saved[s.text]!).filter((q) => !q.vectors);
+  const texts = need.flatMap((q) => q.readings.map((text) => ({ q, text })));
+  const got: number[][] = [];
+  for (const batch of chunked(texts, 100)) {
+    const { vectors } = await embed({ kind: "texts", texts: batch.map((t) => t.text) });
+    got.push(...vectors);
+  }
+  let at = 0;
+  for (const q of need) {
+    q.vectors = got.slice(at, at + q.readings.length);
+    at += q.readings.length;
   }
   if (!fellBack) await kvSet(QUERIES_KEY, saved);
   return { queries: state.sentences.map((s) => saved[s.text]!), fellBack, model };
@@ -138,13 +151,8 @@ export async function savedSearches(state: FlowState) {
   const saved = (await kvGet<Record<string, SavedQuery>>(QUERIES_KEY).catch(() => undefined)) ?? {};
   return state.sentences.map((s) => {
     const q = saved[s.text];
-    return q ? { query: q.query, partOfDay: q.partOfDay, day: q.day } : null;
+    return q ? { readings: q.readings, partOfDay: q.partOfDay, day: q.day } : null;
   });
-}
-
-/** The photo count to aim for: the middle of the estimate. */
-export function defaultTarget(estimate: { min: number; max: number } | null): number {
-  return estimate ? Math.round((estimate.min + estimate.max) / 2) : 1;
 }
 
 export async function runMatching(
@@ -162,28 +170,35 @@ export async function runMatching(
   const candidates = state.stacks
     .filter((k) => vectors.has(k.topPick))
     .map((k) => ({ photoId: k.topPick, stackId: k.id }));
+  // A photo's score for a sentence is its best match across the sentence's readings.
   const scores = queries.map((q) =>
-    candidates.map((c) => cosine(q.vector!, vectors.get(c.photoId)!) + timeBonus(q, byId.get(c.photoId)!, dayOf)),
+    candidates.map((c) => {
+      const photo = vectors.get(c.photoId)!;
+      return Math.max(...q.vectors!.map((v) => cosine(v, photo))) + timeBonus(q, byId.get(c.photoId)!, dayOf);
+    }),
   );
 
   const notes: string[] = [];
-  if (candidates.length < topPicks.length) {
-    notes.push(`${topPicks.length - candidates.length} photos couldn't be indexed this time, so they weren't matched.`);
+  const missed = topPicks.length - candidates.length;
+  if (missed > 0) {
+    notes.push(
+      `${missed} ${missed === 1 ? "photo" : "photos"} couldn’t be looked at this time, so ${missed === 1 ? "it wasn’t" : "they weren’t"} matched. Matching again later sends only those.`,
+    );
   }
-  if (fellBack) notes.push("Inkreel couldn't write photo searches this time, so it searched with your sentences as written.");
 
   const match: MatchData = {
     sentenceIds: state.sentences.map((s) => s.id),
     candidates,
     scores,
-    lookedFor: Object.fromEntries(state.sentences.map((s, i) => [s.id, queries[i]!.query])),
+    lookedFor: Object.fromEntries(state.sentences.map((s, i) => [s.id, queries[i]!.readings.join(" · ")])),
     verdicts: {},
     byHand: false,
     fixed: {},
     queriesModel: model,
+    searchesFellBack: fellBack,
     notes,
   };
-  return { match, cards: proposeCards(match, target, stackLookup(state)) };
+  return { match, cards: proposeCards(match, target, stackLookup(state), stanzaBreaks(state)) };
 }
 
 /** Matching by hand: the writing is split in code, and the user picks every photo. */
@@ -198,7 +213,7 @@ export function matchByHand(state: FlowState, target: number): { match: MatchDat
     fixed: {},
     notes: [],
   };
-  return { match, cards: proposeCards(match, target) };
+  return { match, cards: proposeCards(match, target, undefined, stanzaBreaks(state)) };
 }
 
 /**
@@ -234,7 +249,7 @@ export async function checkCards(
           return {
             id: card.id,
             text: cardText(state, card),
-            lookedFor: card.sentenceIds.map((id) => match.lookedFor[id] ?? "").join("; "),
+            lookedFor: card.sentenceIds.map((id) => match.lookedFor[id] ?? "").join("; ").slice(0, 2000),
             photos,
           };
         }),

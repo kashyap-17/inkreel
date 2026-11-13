@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AiError } from "@/lib/ai/client";
-import { photoEstimate, type FlowAction, type FlowState } from "@/lib/flow/flow";
-import { defaultTarget, runMatching, type Stage } from "@/lib/match/run";
+import { defaultTarget, type FlowAction, type FlowState } from "@/lib/flow/flow";
+import { runMatching, type Stage } from "@/lib/match/run";
 import { StepBar } from "./StepBar";
 
 function describe(stage: Stage | null): { label: string; done?: number; total?: number } {
@@ -41,7 +41,7 @@ export function MatchingStep({
     // Runs once per attempt, even when React mounts effects twice in development.
     if (started.current === attempt) return;
     started.current = attempt;
-    const target = state.target ?? defaultTarget(photoEstimate(state));
+    const target = state.target ?? defaultTarget(state);
     runMatching(state, target, setStage)
       .then(({ match, cards }) => dispatch({ type: "matched", match, cards, target }))
       .catch((e: unknown) => {
@@ -67,9 +67,9 @@ export function MatchingStep({
             <p className="small muted">The first time takes longest. Photos already looked at aren’t sent again.</p>
           </div>
           <p className="small muted">
-            What to expect: Inkreel turns each line into a description of a photo, then finds the closest ones in your
-            album, using what’s in them and when they were taken. Lines about feelings are harder, so a weak match is
-            marked.
+            What to expect: Inkreel works out what each line could look like as a photo, then finds the closest ones in
+            your album, using what’s in them and when they were taken. Lines about feelings are harder, so a weak match
+            is marked.
           </p>
         </>
       ) : (

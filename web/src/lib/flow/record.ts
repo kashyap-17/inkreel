@@ -14,7 +14,7 @@ export interface RecordEvent {
 }
 
 export interface SavedSearch {
-  query: string;
+  readings: string[];
   partOfDay: string;
   day: number;
 }
@@ -88,6 +88,7 @@ export function buildTestRecord(
     matching: match && {
       byHand: match.byHand,
       queriesModel: match.queriesModel ?? null,
+      searchesFellBack: match.searchesFellBack ?? false,
       notes: match.notes,
       target: state.target,
       candidates: match.candidates,

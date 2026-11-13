@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { photoEstimate, type FlowAction, type FlowState } from "@/lib/flow/flow";
+import { photoEstimate, usesEveryPhoto, wordsEstimate, type FlowAction, type FlowState } from "@/lib/flow/flow";
 import { isPhoto } from "@/lib/photos/files";
 import { formatDay } from "@/lib/photos/format";
 import { buildStacks, sortByTime } from "@/lib/photos/stacks";
@@ -10,10 +10,11 @@ import type { PhotoRecord } from "@/lib/photos/types";
 import { deletePhotos, putPhoto } from "@/lib/store/db";
 import { sendPhotoReport } from "@/lib/report";
 import { logEvent } from "@/lib/store/events";
-import { formatEstimate } from "@/lib/words/estimate";
+import type { PhotoEstimate } from "@/lib/words/estimate";
 import { forgetPhotoUrls, Photo } from "./Photo";
 import { StepBar } from "./StepBar";
 import { TestRecordLink } from "./TestRecordLink";
+import { useTester } from "./Tester";
 
 const SHOWN = 60;
 
@@ -24,9 +25,12 @@ type Status =
   | { kind: "error"; message: string; detail: string };
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const range = (e: PhotoEstimate) => (e.min === e.max ? plural(e.min, "photo", "photos") : `${e.min}–${e.max} photos`);
+const REPORT_NOTE = "A short error report was sent so this can be fixed. It has no photos or file names.";
 
 export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a: FlowAction) => void }) {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const tester = useTester();
   const photos = state.photos;
   const reading = status.kind === "reading";
 
@@ -115,8 +119,9 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
   }
 
   const byFileDate = photos.filter((p) => p.timeSource === "file").length;
-  const stacked = photos.length - state.stacks.length;
+  const fits = wordsEstimate(state);
   const estimate = photoEstimate(state);
+  const everyPhoto = usesEveryPhoto(state);
   const first = photos[0];
   const last = photos[photos.length - 1];
   const span = first && last ? (formatDay(first) === formatDay(last) ? formatDay(first) : `${formatDay(first)} to ${formatDay(last)}`) : "";
@@ -126,9 +131,11 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
       <StepBar current={1} />
       <h1>Now, the photos</h1>
       <p className="lede">
-        Choose every photo from the trip, even hundreds. Inkreel finds the ones that go with your words.
+        {fits
+          ? `Your writing fits about ${range(fits)}. Add just those, or add the whole trip and Inkreel picks the ones that fit.`
+          : "Add the photos for your post, or the whole trip and Inkreel picks the ones that fit."}
       </p>
-      <p className="muted small">Nothing leaves your phone until you say so on the next screen.</p>
+      <p className="muted small">Your photos stay on your phone until you say so on the next screen.</p>
 
       <section className="photo-step">
         <div className="row">
@@ -152,19 +159,21 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
           <>
             <div className="warn">
               <p>{status.message}</p>
-              <p className="small">Error details were sent to fix this: file types, sizes and errors, no photos or file names.</p>
-              <details>
-                <summary>Details</summary>
-                <p className="small failures">{status.detail}</p>
-              </details>
+              <p className="small">{REPORT_NOTE}</p>
+              {tester && (
+                <details>
+                  <summary>Details</summary>
+                  <p className="small failures">{status.detail}</p>
+                </details>
+              )}
             </div>
-            <TestRecordLink state={state} />
+            {tester && <TestRecordLink state={state} />}
           </>
         )}
         {status.kind === "done" && status.failures.length > 0 && (
           <>
             <Failures failures={status.failures} />
-            <TestRecordLink state={state} />
+            {tester && <TestRecordLink state={state} />}
           </>
         )}
         {status.kind === "done" && photos.length === 0 && (
@@ -178,16 +187,10 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
                 {plural(photos.length, "photo", "photos")}
                 {span && <span className="muted"> · {span}</span>}
               </p>
-              {stacked > 0 && (
-                <p className="muted small">
-                  {plural(stacked, "shot looks", "shots look")} nearly the same as the one before, so Inkreel won’t put
-                  both in a post. You can still choose any of them later.
-                </p>
-              )}
               {byFileDate > 0 && (
                 <p className="warn">
-                  {plural(byFileDate, "photo has", "photos have")} no saved time, so{" "}
-                  {byFileDate === 1 ? "it’s" : "they’re"} placed by file date and marked “no time”.
+                  {plural(byFileDate, "photo has", "photos have")} no time saved, so Inkreel can’t tell when{" "}
+                  {byFileDate === 1 ? "it was" : "they were"} taken. Marked “no time” below.
                 </p>
               )}
               {status.kind === "done" && status.repeats > 0 && (
@@ -198,16 +201,18 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
                   {plural(status.videos, "video was", "videos were")} left out. Inkreel works with photos for now.
                 </p>
               )}
-              <details>
-                <summary className="small">Photo details</summary>
-                <dl className="stats">
-                  <Stat label="Time saved in photo" value={photos.length - byFileDate} />
-                  <Stat label="Placed by file date" value={byFileDate} />
-                  <Stat label="Time zone saved" value={photos.filter((p) => p.offsetMinutes !== null).length} />
-                  <Stat label="Location saved" value={photos.filter((p) => p.gps !== null).length} />
-                  <Stat label="Distinct shots" value={state.stacks.length} />
-                </dl>
-              </details>
+              {tester && (
+                <details>
+                  <summary className="small">Photo details</summary>
+                  <dl className="stats">
+                    <Stat label="Time saved in photo" value={photos.length - byFileDate} />
+                    <Stat label="Placed by file date" value={byFileDate} />
+                    <Stat label="Time zone saved" value={photos.filter((p) => p.offsetMinutes !== null).length} />
+                    <Stat label="Location saved" value={photos.filter((p) => p.gps !== null).length} />
+                    <Stat label="Distinct shots" value={state.stacks.length} />
+                  </dl>
+                </details>
+              )}
             </div>
 
             <div className="thumbs">
@@ -223,8 +228,9 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
             <div className="card next">
               <strong>Next: matching</strong>
               <p className="small">
-                Inkreel will split your writing and pick a photo for each part, with a short reason.
-                {estimate && ` ${formatEstimate(estimate)}, chosen from these ${photos.length}.`}
+                {everyPhoto
+                  ? "Inkreel will put each of these photos with a part of your writing, in the order you wrote it, and say why it fits."
+                  : `Inkreel will split your writing and pick ${estimate ? `about ${range(estimate)}` : "a photo for each part"} from these ${photos.length}, each with a short reason.`}
               </p>
             </div>
           </>
@@ -278,29 +284,30 @@ function PickButton({
 
 /** What couldn't be opened and why, so the cause is visible (and can be sent with feedback). */
 function Failures({ failures }: { failures: PhotoFailure[] }) {
+  const tester = useTester();
   const heic = failures.filter((f) => f.format === "heic").length;
-  const other = failures.length - heic;
   return (
     <div className="warn">
       <p>
         {plural(failures.length, "photo", "photos")} couldn’t be opened in this browser, so{" "}
         {failures.length === 1 ? "it was" : "they were"} left out.
         {heic > 0 &&
-          ` ${heic === failures.length ? (heic === 1 ? "It’s" : "They’re all") : `${heic} are`} HEIC (“high efficiency”) photos, which this browser can’t read yet.`}
-        {other > 0 && heic > 0 && ` ${other} failed for another reason.`}
+          ` ${heic === failures.length ? (heic === 1 ? "It’s" : "They’re all") : `${heic} are`} HEIC photos, which this browser can’t open yet.`}
       </p>
-      <p className="small">Error details were sent to fix this: file types, sizes and errors, no photos or file names.</p>
-      <details>
-        <summary>Details</summary>
-        <ul className="small failures">
-          {failures.slice(0, 40).map((f, i) => (
-            <li key={`${f.fileName}-${i}`}>
-              {f.fileName} · {f.format.toUpperCase()} (labelled {f.type}) · {f.sizeMB} MB · {f.reason}
-            </li>
-          ))}
-          {failures.length > 40 && <li>…and {failures.length - 40} more</li>}
-        </ul>
-      </details>
+      <p className="small">{REPORT_NOTE}</p>
+      {tester && (
+        <details>
+          <summary>Details</summary>
+          <ul className="small failures">
+            {failures.slice(0, 40).map((f, i) => (
+              <li key={`${f.fileName}-${i}`}>
+                {f.fileName} · {f.format.toUpperCase()} (labelled {f.type}) · {f.sizeMB} MB · {f.reason}
+              </li>
+            ))}
+            {failures.length > 40 && <li>…and {failures.length - 40} more</li>}
+          </ul>
+        </details>
+      )}
     </div>
   );
 }

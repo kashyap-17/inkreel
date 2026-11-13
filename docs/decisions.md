@@ -22,6 +22,8 @@ All three modes end in the same thing: one write-up, with each part marked as th
 The user writes freely and doesn't split anything. Inkreel decides where the writing breaks between photos, at matching time, because only then does it know the photos. (Updated 8 Nov: chunking is done in code from the photo-search scores, not by an LLM.)
 
 - **How:** plain code splits the text into sentences (a line break also ends one, so each line of a poem is a sentence). Matching then groups consecutive sentences into chunks and picks a photo for each, using how well each sentence fits each photo (see "Photo selection" below). Chunks are built only from whole sentences in order, so they join back into the exact text. Words are never changed, cut or reordered.
+- **Blank lines (13 Nov):** chunks prefer to end where the writer left a blank line (a stanza or paragraph break). A chunk that runs across one costs 0.1 in the chunk score, so stanzas stay whole whenever the photo count allows. Found on the owner's first real test: a poem of three couplets was cut after line 5.
+- **Default photo count (13 Nov):** if the user added no more distinct photos than the estimate's top, every one is used and Inkreel only decides which part each goes with. Otherwise one photo per stanza when the writing has stanzas and that falls within the estimate; otherwise the middle of the estimate.
 - **The user adjusts on the review screen:** move a sentence to the card before or after, split or join cards, or ask for fewer photos, more photos or one photo.
 - **Why:** the product is words first, so the user writes before knowing which photos they have. Asking them to split their writing into one piece per photo pushes the hard part onto them.
 - **Not chosen:** the user splitting the writing into pieces (by paragraph or line, with join) before photos. It was built first and dropped the same day.
@@ -34,7 +36,7 @@ So the user has an idea of the post's size before adding photos, a live line und
 - **Examples:** a 20-word, 6-line poem → 2–3; one 50-word sentence → 1; 150 words in 9 sentences → 4–6; 600 words in 40 sentences → 15–20, with a note that Instagram allows 20.
 - **After photos are added:** capped at the number of stacks (see "Each chunk gets a photo"). **After matching:** the real count, changed with fewer/more/one photo.
 - **Tuning:** 25, 40, 2 and 4 are starting values, adjusted on real trips.
-- **Not chosen:** paragraphs or stanzas as the guide (the owner preferred not to depend on layout); words alone (a short poem of many lines came out as one photo).
+- **Not chosen:** paragraphs or stanzas as the guide for the estimate itself (the owner preferred not to depend on layout; stanzas now only steer where chunks break and the default count within the estimate); words alone (a short poem of many lines came out as one photo).
 
 ## Photo selection: an LLM writes search queries, embeddings choose the photos (8 Nov 2026)
 
@@ -52,6 +54,8 @@ Proposed by the owner and checked against research. Replaces "Gemini describes 1
 - **Feelings-text needs rewriting first:** CLIP-type models are trained on short literal captions and have shallow language understanding ([positional bias in multimodal embeddings](https://arxiv.org/pdf/2511.11216); [EMNLP 2025](https://aclanthology.org/anthology-files/pdf/emnlp/2025.emnlp-main.709.pdf)). Having an LLM rewrite the text into visual descriptions measurably improves retrieval ([VisRet](https://arxiv.org/abs/2505.20291); [GRAPE](https://www.arxiv.org/pdf/2509.23370)).
 - **Same shape as Google Photos' "Ask Photos":** vector search for candidates, then Gemini reviews only the returned photos ([Google, 2024](https://blog.google/products/photos/ask-photos-google-io-2024/)).
 - **Better than describing groups of photos:** that sent 1–3 photos per group to an LLM, lost detail, didn't scale, and couldn't choose the best photo within a group.
+
+**Several readings per sentence (13 Nov, queries-v2 and check-v3):** step 2 now writes up to three descriptions per sentence: one close to the words, and up to two different concrete scenes it could mean ("a long climb" → "a steep mountain trail with hikers", "stone steps up to a hilltop temple"). A photo's score for a sentence is its best match across them. Proposed by the owner instead of a stricter single description: lines like "a high ride" have more than one fair reading, and one cautious search misses them. The time of day is set only when the sentence states it, because it adds a bonus to the score; on the first test "days of delight" was read as morning. The reason in step 4 now ties one visible thing to a short phrase quoted from the text ("Stone steps up a hillside, for "a long climb""). Prompt examples must not come from test writing: an example taken from the owner's poem was copied back word for word. Flash gets 35 seconds to write the searches, then Lite takes over (Flash took 24–57 s in tests, Lite about 1 s with looser readings; the route stops at 60 s).
 
 **Gemini Embedding 2** (`gemini-embedding-2`, stable): text and images in one space; PNG or JPEG; one photo per entry (several images in one entry give one merged vector); dimensions 128–3072 (768 planned). No `task_type` field; text prefixes instead, to be tested. Free-tier limits on the owner's project: 100 requests/min, 30K tokens/min, 1,000 requests/day, so about 100 photos a minute and ~1,000 photos a day. Tokens per image aren't published; measure in Milestone 0. Only top picks are indexed, so a trip needs fewer requests than it has photos.
 
@@ -188,14 +192,24 @@ Free-tier limits on the owner's project (AI Studio, 7 Nov 2026):
 - **Free tier is for the owner's own testing only.** The terms allow only Paid Services for an app made available to users in the UK, EEA or Switzerland. Before anyone else gets the invite link, move to a Cloud project with billing on. Gemma appears to be free-only on the Gemini API, so for outside users it would need another host (its weights are open, Apache 2.0).
 - **Users must be 18 or over,** and the app must not be aimed at under-18s.
 
-## Output: carousel + one caption, then text on images (7 Nov 2026)
+## Output: carousel + one caption, then text on images (7 Nov 2026; updated 13 Nov)
 
 - **The user chooses where their words go:** in the caption, or on the images. Same matches either way.
-- **First:** an ordered set of photos plus one caption made of the cards' text in slide order. Instagram allows one caption per carousel (up to 20 slides).
+- **First:** an ordered set of photos plus one caption. Instagram allows one caption per carousel (up to 20 slides).
+- **The caption is the writing exactly as written** (13 Nov), line breaks and blank lines included, not the cards joined with blank lines. Joining cards changed the shape of the owner's poem (a blank line appeared inside a couplet).
+- **Caption only for the MVP** (13 Nov): with words in the caption, the line-to-photo pairing shows only through the order of the slides, so matching's visible job is choosing which photos and their order. The app says so on the review and preview screens ("The photos go in this order, and your words go in the caption"). Text on images is the next feature to consider, decided after the owner's first real posts.
 - **Next:** an optional "text on images" toggle with one fixed style (bottom of the image, soft gradient, one font that shrinks to fit). Slides drawn in the browser with canvas.
 - **Rule:** the user's words are never shortened to fit. A card whose text is too long for an image is offered for splitting at a sentence break.
-- **Sharing:** the phone's share sheet (Web Share API) or download. Posting to Instagram stays manual.
+- **Sharing:** the phone's share sheet (Web Share API) or download. Posting to Instagram stays manual. The button is "Share", not "Share to Instagram" (13 Nov): the share sheet lists every app, and people also post to WhatsApp and other apps. The caption is copied in the same tap; a short guide covers pasting it in Instagram. Download is a text link, and Copy sits on the caption.
 - **Later:** single photo + caption, reels.
+
+## Tester mode and error reports (13 Nov 2026)
+
+Testing by screenshot was slow, and the server never sees photo problems because photos are opened on the phone.
+
+- **Error reports:** when photos can't be opened, the photos screen sends a short report to `/api/report` (browser, file types, sizes, which step failed, the errors; no photos or file names), written to Vercel's runtime log as `[photo-report]`. The screen says a report was sent. It is sent before consent, which is acceptable only because it holds no content; revisit before testers other than the owner (opt-in, or fold into Langfuse).
+- **Tester mode:** off by default; opening the app once with `?tester=1` turns it on for that phone (`?tester=0` turns it off). It shows engineering details that ordinary users don't see: the photo details panel, the browser's error text, "what Inkreel looked for", search fallbacks and the "Download test record" link. In tester mode the test record is also sent to the server log (`/api/record`, invite code required, after consent) each time a different post reaches the preview, in numbered pieces of 3,500 characters (`[test-record <id> n/m]`).
+- **Reading the log:** Vercel's free plan keeps runtime logs for about 30 minutes, so records are read soon after a test (`npx vercel@65.15.0 logs` from `web/`, signed in on the owner's Mac).
 
 ## Open
 
@@ -203,4 +217,6 @@ Free-tier limits on the owner's project (AI Studio, 7 Nov 2026):
 - **Scoring weights:** how much the time hint counts against the photo score, and the score below which a match is marked weak; tuned on real trips.
 - **Stack and "Around then" values:** the 2-minute window and similarity threshold for stacks; the 15-minute window for "Around then".
 - **Optional aesthetic score** for choosing a stack's top pick and breaking ties between close matches (LAION aesthetic predictor, NIMA, MUSIQ).
+- **How to measure matching quality:** not decided. For now, how often users change a photo (every change is in the session log and test record) and what they say. The fuller comparison against the owner's own picks (Milestone 0) is still planned.
+- **Flash or Lite for the search call:** Flash writes better readings but took 24–57 s in tests; Lite takes about 1 s. Flash with a 35 s fallback to Lite for now.
 - **License.**

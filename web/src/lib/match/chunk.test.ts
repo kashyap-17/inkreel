@@ -13,6 +13,22 @@ describe("chunkAndMatch", () => {
     chunks.slice(1).forEach((c, i) => expect(c.start).toBe(chunks[i]!.end));
   });
 
+  it("keeps stanzas whole when the photo count allows it", () => {
+    // Three couplets. Line 5 fits photo b slightly better, but a blank line ends line 4.
+    const scores = [
+      [0.6, 0.2, 0.2],
+      [0.6, 0.2, 0.2],
+      [0.2, 0.6, 0.2],
+      [0.2, 0.6, 0.2],
+      [0.2, 0.58, 0.5],
+      [0.2, 0.2, 0.6],
+    ];
+    const breaks = [false, true, false, true, false];
+    const ranges = (chunks: ReturnType<typeof chunkAndMatch>) => chunks.map((c) => [c.start, c.end]);
+    expect(ranges(chunkAndMatch(scores, cands("a", "b", "c"), 3))).toEqual([[0, 2], [2, 5], [5, 6]]);
+    expect(ranges(chunkAndMatch(scores, cands("a", "b", "c"), 3, breaks))).toEqual([[0, 2], [2, 4], [4, 6]]);
+  });
+
   it("breaks where the writing moves to another photo", () => {
     // Sentences 0–1 fit photo 1, sentences 2–3 fit photo 2.
     const scores = [

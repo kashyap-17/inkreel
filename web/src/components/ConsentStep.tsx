@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { INDEX_IMAGE_PX } from "@/config/ai";
 import { AiError, savedInvite, saveInvite, verifyInvite } from "@/lib/ai/client";
 import type { FlowAction, FlowState } from "@/lib/flow/flow";
 import { StepBar } from "./StepBar";
@@ -21,7 +20,7 @@ export function ConsentStep({
   const [code, setCode] = useState(savedInvite);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(message ?? null);
-  const shots = state.stacks.length;
+  const count = state.photos.length;
 
   async function send() {
     setBusy(true);
@@ -50,19 +49,21 @@ export function ConsentStep({
       </p>
       <ul className="consent card">
         <li>
-          <strong>{shots} photos</strong>, made small ({INDEX_IMAGE_PX} px) with location and camera details removed.
-          Near-identical shots are sent once.
+          <strong>
+            Small copies of your {count === 1 ? "photo" : `${count} photos`}
+          </strong>
+          , with location and camera details removed. Your originals stay on your phone.
         </li>
         <li>
-          <strong>Your writing</strong>, to work out what each line would look like as a photo.
+          <strong>Your writing</strong>, to work out what each line could look like as a photo.
         </li>
         <li>
-          <strong>A few of the matched photos</strong> again, smaller still, to check each match and write the reason.
+          <strong>A few of the matched photos</strong> again, to check each match and say why it fits.
         </li>
       </ul>
       <p className="small muted">
         Google’s Gemini API terms apply to what Google receives. Inkreel’s server passes the requests on and keeps
-        nothing. Your full-size photos stay on your phone.
+        nothing.
       </p>
 
       <label htmlFor="invite" className="small">

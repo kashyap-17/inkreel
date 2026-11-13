@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { verdictKey, type Card, type FlowState } from "@/lib/flow/flow";
+import { stackLookup, verdictKey, type Card, type FlowState } from "@/lib/flow/flow";
 import { makeRangeScorer, rankCandidates } from "@/lib/match/chunk";
 import { formatTime } from "@/lib/photos/format";
 import { AROUND_MINUTES } from "@/lib/photos/stacks";
@@ -56,6 +56,14 @@ export function SwapSheet({
 
   const reasonFor = (id: string) => match?.verdicts[verdictKey(card.sentenceIds, id)];
 
+  // Photos already in another slide; choosing one makes the two slides trade photos.
+  const stackOf = stackLookup(state);
+  const slides = state.cards.filter((c) => c.photoId && !c.captionOnly);
+  const inSlide = (id: string) => {
+    const i = slides.findIndex((c) => c.id !== card.id && stackOf(c.photoId!) === stackOf(id));
+    return i >= 0 ? i + 1 : null;
+  };
+
   const grid = (title: string, ids: string[], note?: string) =>
     ids.length > 0 && (
       <section>
@@ -67,7 +75,7 @@ export function SwapSheet({
             return (
               <button key={id} type="button" className="thumb" onClick={() => onPick(id)}>
                 <Photo id={id} alt={`Photo taken at ${formatTime(p)}`} />
-                <span className="flag time">{formatTime(p)}</span>
+                <span className="flag time">{inSlide(id) ? `In slide ${inSlide(id)}` : formatTime(p)}</span>
               </button>
             );
           })}
@@ -91,7 +99,10 @@ export function SwapSheet({
               <span className="thumb">
                 <Photo id={id} />
               </span>
-              <span className="small">{reasonFor(id)?.reason ?? `Taken at ${formatTime(byId.get(id)!)}`}</span>
+              <span className="small">
+                {reasonFor(id)?.reason ?? `Taken at ${formatTime(byId.get(id)!)}`}
+                {inSlide(id) && ` (in slide ${inSlide(id)}; the two will trade places)`}
+              </span>
             </button>
           ))}
         </section>

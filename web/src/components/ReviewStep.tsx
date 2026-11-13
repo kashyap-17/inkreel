@@ -5,6 +5,7 @@ import { cardText, targetBounds, verdictKey, type Card, type FlowAction, type Fl
 import { Photo } from "./Photo";
 import { StepBar } from "./StepBar";
 import { SwapSheet } from "./SwapSheet";
+import { useTester } from "./Tester";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -18,6 +19,7 @@ export function ReviewStep({
   checking: boolean;
 }) {
   const [swapping, setSwapping] = useState<string | null>(null);
+  const tester = useTester();
   const match = state.match;
   const byHand = match?.byHand ?? false;
   const { min, max } = targetBounds(state);
@@ -32,13 +34,17 @@ export function ReviewStep({
       <p className="lede">
         {byHand
           ? "Your writing, split into parts. Pick a photo for each."
-          : "Your writing, split into parts, each with the photo Inkreel picked and why. Change anything."}
+          : "Your writing, split into parts, each with the photo Inkreel picked and why. Change anything."}{" "}
+        The photos go in this order, and your words go in the caption.
       </p>
       {match?.notes.map((n) => (
         <p key={n} className="warn">
           {n}
         </p>
       ))}
+      {tester && match?.searchesFellBack && (
+        <p className="warn small">Tester: the search call failed, so the sentences themselves were searched.</p>
+      )}
 
       <div className="row toolbar">
         <span className="small">{plural(count, "part", "parts")}</span>
@@ -82,6 +88,7 @@ export function ReviewStep({
             index={i}
             last={i === state.cards.length - 1}
             checking={checking}
+            tester={tester}
             dispatch={dispatch}
             onSwap={() => setSwapping(card.id)}
           />
@@ -118,6 +125,7 @@ function MatchCard({
   index,
   last,
   checking,
+  tester,
   dispatch,
   onSwap,
 }: {
@@ -126,6 +134,7 @@ function MatchCard({
   index: number;
   last: boolean;
   checking: boolean;
+  tester: boolean;
   dispatch: (a: FlowAction) => void;
   onSwap: () => void;
 }) {
@@ -165,10 +174,10 @@ function MatchCard({
             {card.textChanged && <span className="label weak">Words changed: check this photo</span>}
             {verdict ? (
               <p>{verdict.reason}</p>
-            ) : card.status === "suggested" && lookedFor.length > 0 ? (
-              <p className="muted">{checking ? "Checking…" : `Looked for: ${lookedFor.join("; ")}`}</p>
+            ) : card.status === "suggested" && checking ? (
+              <p className="muted">Checking…</p>
             ) : null}
-            {verdict && lookedFor.length > 0 && (
+            {tester && lookedFor.length > 0 && (
               <details>
                 <summary>What Inkreel looked for</summary>
                 <p className="muted">{lookedFor.join("; ")}</p>

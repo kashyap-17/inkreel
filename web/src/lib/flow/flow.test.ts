@@ -3,10 +3,13 @@ import type { PhotoRecord } from "@/lib/photos/types";
 import {
   captionOf,
   cardText,
+  defaultTarget,
   flowReducer,
   initialFlow,
   photoEstimate,
   proposeCards,
+  stanzaBreaks,
+  usesEveryPhoto,
   verdictKey,
   type FlowAction,
   type FlowState,
@@ -124,6 +127,13 @@ describe("matching and review", () => {
     expect(flowReducer(s, { type: "undo" }).cards[0]).toMatchObject({ photoId: "p1", status: "suggested" });
   });
 
+  it("trades photos when the chosen one is already in another slide, so no shot repeats", () => {
+    const s = flowReducer(matchedState(), { type: "swap", cardId: "c1", photoId: "p2" });
+    expect(s.cards.map((c) => c.photoId)).toEqual(["p2", "p1"]);
+    expect(s.cards.every((c) => c.status === "swapped")).toBe(true);
+    expect(flowReducer(s, { type: "undo" }).cards.map((c) => c.photoId)).toEqual(["p1", "p2"]);
+  });
+
   it("moves a sentence to the next card and marks both to check", () => {
     const s = flowReducer(matchedState(), { type: "moveSentence", cardId: "c1", to: "next" });
     expect(s.cards.map((c) => c.sentenceIds)).toEqual([
@@ -167,5 +177,38 @@ describe("matching and review", () => {
     const s = matchedState();
     expect(flowReducer(s, { type: "setText", text: POEM }).cards).toHaveLength(2);
     expect(flowReducer(s, { type: "setText", text: POEM + " More." }).cards).toHaveLength(0);
+  });
+});
+
+describe("stanzas and the photo count", () => {
+  const withPhotos = (n: number) =>
+    run(
+      { type: "chooseMode", mode: "own" },
+      { type: "setText", text: POEM },
+      {
+        type: "setPhotos",
+        photos: Array.from({ length: n }, (_, i) => photo(`p${i + 1}`)),
+        stacks: Array.from({ length: n }, (_, i) => ({ id: `k${i + 1}`, photoIds: [`p${i + 1}`], topPick: `p${i + 1}` })),
+      },
+    );
+
+  it("finds the blank lines between stanzas", () => {
+    expect(stanzaBreaks(withPhotos(1))).toEqual([false, false, true, false]);
+  });
+
+  it("uses every photo when there are no more than the writing needs", () => {
+    // The poem fits 2–3 photos.
+    expect(usesEveryPhoto(withPhotos(3))).toBe(true);
+    expect(defaultTarget(withPhotos(3))).toBe(3);
+  });
+
+  it("otherwise aims for one photo per stanza", () => {
+    expect(usesEveryPhoto(withPhotos(10))).toBe(false);
+    expect(defaultTarget(withPhotos(10))).toBe(2);
+  });
+
+  it("keeps the caption exactly as written, whatever the parts", () => {
+    const s = flowReducer(matchedState(), { type: "moveSentence", cardId: "c1", to: "next" });
+    expect(captionOf(s)).toBe(POEM);
   });
 });
