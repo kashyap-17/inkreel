@@ -125,11 +125,17 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Changed:** chunks prefer the writer's blank lines and default to one photo per stanza; every photo is used when the user adds no more than the estimate; the caption is the writing exactly as written; up to three readings per sentence with the best match counting (queries-v2) and reasons tied to a quoted phrase (check-v3); Flash gets 35 s for the searches, then Lite; tester mode (`?tester=1`) holds the engineering details and sends the test record to the server log; new copy on the photos, consent, review and preview screens; one "Share" button with a paste guide, Copy on the caption, "Save the photos instead" as a link; tapping a slide on the preview changes its photo; choosing a photo that's in another slide makes the two trade places.
 - **Checked:** 74 tests; the full flow in Chrome with a three-stanza poem through matching, the check, the preview, Copy (clipboard matches the caption), changing a slide (slides trade places, no repeat), and the test record arriving in the server log. A prompt example taken from the owner's poem was copied back by Gemini word for word, so the examples were replaced with ones not in any test writing.
 
-## Where things stand (13 Nov 2026)
+## 16 Nov 2026: copy after the owner's read-through
+
+- **Owner's points:** "Your writing fits about 2–3 photos" makes no sense while the words go in the caption; "add the whole trip" should be "add more and Inkreel picks the ones that fit your writing"; no "hundreds"; don't say "trip" in the app at all (trips are the internal positioning, hinted at most); two choices on the start screen, not three. The owner also asked to discuss changes before they're built; the copy edits had been started and were put to the owner as a list before going further.
+- **Changed:** "trip" and "hundreds" removed from every screen and the README; the photo estimate no longer shown on the words or photos screens; a "How many photos in your post?" control on the photos screen (the estimate only sets its starting number); start screen shows "I have writing" and "Write with Inkreel" (coming soon); the prompts sent to Gemini no longer say "trip" (queries-v3, check-v4), so non-trip posts aren't pulled towards travel scenes.
+- **Checked:** 75 tests; start, words and photos screens and the count control in Chrome, through matching by hand. The new prompt versions were not run against Gemini in this round.
+
+## Where things stand (16 Nov 2026)
 
 **Done:** the core loop for "I have writing", end to end and deployed: words with a live photo estimate → photos (working copies, stacks) → consent → matching with reasons → review (swap, move a line, caption only, fewer/more, undo) → preview (change a photo, share, copy). The draft is saved on the device. Tested once on the owner's phone with a real trip.
 
-**Waiting on the owner:** a second phone test of this round's changes (same poem and photos is fine, with `?tester=1` once so the record reaches the log); whether the caption pasted in Instagram after Share; the owner's own picks for the London poem, if a fuller comparison is wanted later.
+**Waiting on the owner:** a second phone test of the 13 and 16 Nov changes (same poem and photos is fine, with `?tester=1` once so the record reaches the log); whether the caption pasted in Instagram after Share; the owner's own picks for the London poem, if a fuller comparison is wanted later.
 
 **Not built yet (in the plan):**
 - Setting aside blurry, badly exposed and screenshot photos ("view set-aside photos"); HEIC conversion when the browser can't decode it.

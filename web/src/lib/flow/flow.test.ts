@@ -207,6 +207,13 @@ describe("stanzas and the photo count", () => {
     expect(defaultTarget(withPhotos(10))).toBe(2);
   });
 
+  it("keeps a photo count chosen before matching, also when photos are added", () => {
+    let s = flowReducer(withPhotos(10), { type: "setTarget", target: 4 });
+    expect(s.target).toBe(4);
+    s = flowReducer(s, { type: "setPhotos", photos: s.photos, stacks: s.stacks });
+    expect(s.target).toBe(4);
+  });
+
   it("keeps the caption exactly as written, whatever the parts", () => {
     const s = flowReducer(matchedState(), { type: "moveSentence", cardId: "c1", to: "next" });
     expect(captionOf(s)).toBe(POEM);

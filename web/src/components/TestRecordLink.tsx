@@ -12,7 +12,7 @@ export async function currentRecord(state: FlowState, now = new Date()) {
   return buildTestRecord(state, { searches: await savedSearches(state), events: await loadEvents(), now });
 }
 
-/** Tester mode: saves a file with what Inkreel did on this trip and what was changed. */
+/** Tester mode: saves a file with what Inkreel did for this post and what was changed. */
 export function TestRecordLink({ state }: { state: FlowState }) {
   const [saved, setSaved] = useState(false);
 

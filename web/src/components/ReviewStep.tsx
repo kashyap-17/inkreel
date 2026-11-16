@@ -147,7 +147,7 @@ function MatchCard({
     <li className="card match">
       <div className="match-photo">
         {card.captionOnly ? (
-          <div className="placeholder">Caption only</div>
+          <div className="placeholder">No photo</div>
         ) : card.photoId ? (
           <button type="button" className="photo-button" onClick={onSwap} aria-label="Change photo">
             <Photo id={card.photoId} size="full" />
@@ -197,7 +197,7 @@ function MatchCard({
             className="secondary small-button"
             onClick={() => dispatch({ type: "toggleCaptionOnly", cardId: card.id })}
           >
-            {card.captionOnly ? "Use a photo" : "Caption only"}
+            {card.captionOnly ? "Use a photo" : "No photo for this part"}
           </button>
           {index > 0 && (
             <button

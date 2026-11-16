@@ -109,7 +109,7 @@ export function SwapSheet({
       )}
       {grid("Other shots of this", sameShot)}
       {grid("Around then", around, current ? `Within ${AROUND_MINUTES} minutes of ${formatTime(current)}` : undefined)}
-      {grid(match?.byHand ? "All your photos" : "Elsewhere in the trip", elsewhere)}
+      {grid(match?.byHand ? "All your photos" : "Elsewhere in your photos", elsewhere)}
     </dialog>
   );
 }

@@ -403,6 +403,19 @@ button:disabled {
   border-style: dashed;
 }
 
+.stepper {
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+}
+
+.stepper .count {
+  min-width: 2ch;
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
 .estimate {
   margin: 4px 0 0;
   font-size: 0.95rem;

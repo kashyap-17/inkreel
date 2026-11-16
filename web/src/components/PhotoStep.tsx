@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { photoEstimate, usesEveryPhoto, wordsEstimate, type FlowAction, type FlowState } from "@/lib/flow/flow";
+import { defaultTarget, targetBounds, type FlowAction, type FlowState } from "@/lib/flow/flow";
 import { isPhoto } from "@/lib/photos/files";
 import { formatDay } from "@/lib/photos/format";
 import { buildStacks, sortByTime } from "@/lib/photos/stacks";
@@ -10,7 +10,6 @@ import type { PhotoRecord } from "@/lib/photos/types";
 import { deletePhotos, putPhoto } from "@/lib/store/db";
 import { sendPhotoReport } from "@/lib/report";
 import { logEvent } from "@/lib/store/events";
-import type { PhotoEstimate } from "@/lib/words/estimate";
 import { forgetPhotoUrls, Photo } from "./Photo";
 import { StepBar } from "./StepBar";
 import { TestRecordLink } from "./TestRecordLink";
@@ -25,7 +24,6 @@ type Status =
   | { kind: "error"; message: string; detail: string };
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-const range = (e: PhotoEstimate) => (e.min === e.max ? plural(e.min, "photo", "photos") : `${e.min}–${e.max} photos`);
 const REPORT_NOTE = "A short error report was sent so this can be fixed. It has no photos or file names.";
 
 export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a: FlowAction) => void }) {
@@ -119,9 +117,9 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
   }
 
   const byFileDate = photos.filter((p) => p.timeSource === "file").length;
-  const fits = wordsEstimate(state);
-  const estimate = photoEstimate(state);
-  const everyPhoto = usesEveryPhoto(state);
+  const bounds = targetBounds(state);
+  const count = Math.min(Math.max(state.target ?? defaultTarget(state), bounds.min), bounds.max);
+  const shots = state.stacks.length;
   const first = photos[0];
   const last = photos[photos.length - 1];
   const span = first && last ? (formatDay(first) === formatDay(last) ? formatDay(first) : `${formatDay(first)} to ${formatDay(last)}`) : "";
@@ -131,9 +129,8 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
       <StepBar current={1} />
       <h1>Now, the photos</h1>
       <p className="lede">
-        {fits
-          ? `Your writing fits about ${range(fits)}. Add just those, or add the whole trip and Inkreel picks the ones that fit.`
-          : "Add the photos for your post, or the whole trip and Inkreel picks the ones that fit."}
+        Add just the photos you want in your post, or add more and choose how many to keep. Inkreel picks the ones
+        that best fit your writing.
       </p>
       <p className="muted small">Your photos stay on your phone until you say so on the next screen.</p>
 
@@ -226,12 +223,41 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
             </div>
 
             <div className="card next">
-              <strong>Next: matching</strong>
+              <strong id="photo-count">How many photos in your post?</strong>
+              <div className="row stepper" role="group" aria-labelledby="photo-count">
+                <button
+                  type="button"
+                  className="secondary small-button"
+                  aria-label="Fewer photos"
+                  disabled={count <= bounds.min}
+                  onClick={() => dispatch({ type: "setTarget", target: count - 1 })}
+                >
+                  −
+                </button>
+                <span className="count" aria-live="polite">
+                  {count}
+                </span>
+                <button
+                  type="button"
+                  className="secondary small-button"
+                  aria-label="More photos"
+                  disabled={count >= bounds.max}
+                  onClick={() => dispatch({ type: "setTarget", target: count + 1 })}
+                >
+                  +
+                </button>
+              </div>
               <p className="small">
-                {everyPhoto
-                  ? "Inkreel will put each of these photos with a part of your writing, in the order you wrote it, and say why it fits."
-                  : `Inkreel will split your writing and pick ${estimate ? `about ${range(estimate)}` : "a photo for each part"} from these ${photos.length}, each with a short reason.`}
+                {count >= shots
+                  ? shots === photos.length
+                    ? "All of them. Inkreel puts them in the order of your writing and says why each one fits."
+                    : "One of each shot (near-identical ones count once). Inkreel puts them in the order of your writing and says why each one fits."
+                  : `Inkreel picks the ${count} that best fit your writing, each with a short reason.`}{" "}
+                You can change this after matching.
               </p>
+              {count >= bounds.max && bounds.max < shots && (
+                <p className="small muted">At most one photo per line of your writing.</p>
+              )}
             </div>
           </>
         )}

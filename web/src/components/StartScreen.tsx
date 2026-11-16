@@ -12,19 +12,13 @@ const MODES: ModeOption[] = [
   {
     mode: "own",
     title: "I have writing",
-    body: "Paste or type your notes, a poem, anything from the trip. Used exactly as you wrote it.",
+    body: "Paste or type your notes, a poem, anything you want to say. Used exactly as you wrote it.",
     ready: true,
   },
   {
     mode: "help",
-    title: "Help me write",
-    body: "Answer four quick questions about the trip. Inkreel drafts lines from your answers, marked as AI.",
-    ready: false,
-  },
-  {
-    mode: "mix",
-    title: "Mix",
-    body: "Keep your writing and see a few suggested lines. Accept or reject each one.",
+    title: "Write with Inkreel",
+    body: "Inkreel helps you find the words, from a few questions or by suggesting lines. Anything it writes is marked as AI.",
     ready: false,
   },
 ];
@@ -35,20 +29,21 @@ export function StartScreen({ onChoose }: { onChoose: (mode: Mode) => void }) {
       <p className="wordmark">{APP_NAME}</p>
       <h1 className="hero">{APP_TAGLINE}</h1>
       <p className="lede">
-        Hundreds of trip photos, and a few lines that say how it really felt. Start with your words, and Inkreel finds
+        A camera roll full of photos, and a few lines that say how it really felt. Start with your words, and Inkreel finds
         the photos in your album that go with them, so what you post sounds like you.
       </p>
 
       <ol className="how">
         <li>
-          <strong>Write.</strong> Your notes, a poem, or a few lines about the trip.
+          <strong>Write.</strong> Your notes, a poem, or a few lines about how it felt.
         </li>
         <li>
-          <strong>Add photos.</strong> The whole trip, even hundreds.
+          <strong>Add photos.</strong> Just the ones you want, or more and Inkreel picks the ones that best fit your
+          writing.
         </li>
         <li>
-          <strong>Match.</strong> Inkreel splits your writing and picks a photo for each part, with a short reason.
-          Swap any you’d pick differently.
+          <strong>Match.</strong> Inkreel picks the photos that best fit your writing and puts them in order, with a
+          short reason for each. Swap any you’d pick differently.
         </li>
         <li>
           <strong>Share.</strong> A carousel and caption, ready to post.
@@ -57,7 +52,7 @@ export function StartScreen({ onChoose }: { onChoose: (mode: Mode) => void }) {
 
       <ul className="promises small">
         <li>Your words are never rewritten. Anything AI writes is marked.</li>
-        <li>Your photos stay on your phone. Inkreel asks before sending anything.</li>
+        <li>Your photos stay on your phone. Inkreel asks before sending any of them.</li>
       </ul>
 
       <h2>How do you want to tell it?</h2>

@@ -2,12 +2,12 @@
 
 **Your camera roll, your story.**
 
-Inkreel turns the hundreds of photos from your trip into posts worth sharing, without losing what made the trip yours. Add your thoughts, notes or writing, and Inkreel finds the photos in your album that go with them, so what you post carries your voice, not a generic caption.
+Inkreel turns a camera roll full of photos into posts worth sharing, without losing what made them yours. Add your thoughts, notes or writing, and Inkreel finds the photos in your album that go with them, so what you post carries your voice, not a generic caption.
 
 ## How it works
 
-1. **Start with your words.** Paste or type your notes, a poem, anything from the trip. Or answer a few quick questions about how it felt, and Inkreel drafts lines from your answers.
-2. **Add your photos.** The whole trip, even hundreds. Near-identical shots are grouped, so a post never repeats one.
+1. **Start with your words.** Paste or type your notes, a poem, anything you want to say. Or answer a few quick questions about how it felt, and Inkreel drafts lines from your answers.
+2. **Add your photos.** Just the ones you want, or more and Inkreel picks the ones that best fit your writing. Near-identical shots are grouped, so a post never repeats one.
 3. **See the matches.** Inkreel splits your writing into parts and picks a photo for each, with a short reason why.
 4. **Make it yours.** Swap any photo, move lines between parts, or ask for fewer or more photos.
 5. **Share.** A carousel and caption, ready to post.

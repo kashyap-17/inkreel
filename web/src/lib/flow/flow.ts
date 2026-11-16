@@ -166,7 +166,8 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
       return canGoTo(state, action.step) ? { ...state, step: action.step } : state;
 
     case "setPhotos":
-      return { ...state, photos: action.photos, stacks: action.stacks, match: null, cards: [], history: [], target: null };
+      // The photo count the user chose is kept; matches are redone with the new photos.
+      return { ...state, photos: action.photos, stacks: action.stacks, match: null, cards: [], history: [] };
 
     case "matched":
       return { ...state, match: action.match, cards: action.cards, target: action.target, history: [], step: "review" };
@@ -248,7 +249,8 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
       );
 
     case "setTarget": {
-      if (!state.match) return state;
+      // Before matching, this is the count chosen on the photos screen.
+      if (!state.match) return { ...state, target: action.target };
       const cards = proposeCards(state.match, action.target, stackLookup(state), stanzaBreaks(state));
       return { ...withHistory(state, cards), target: action.target };
     }

@@ -30,6 +30,8 @@ The user writes freely and doesn't split anything. Inkreel decides where the wri
 
 ### Photo estimate on the words screen
 
+**Hidden since 16 Nov 2026.** With the words in the caption, the length of the writing doesn't decide how many photos a post has, so "About 2–3 photos" and "Your writing fits about 2–3 photos" read as arbitrary. The user now chooses the count on the photos screen ("How many photos in your post?", − n +), kept when more photos are added and still adjustable after matching. The rule below only sets the starting number (every photo when few are added, else one per stanza, else the middle of the estimate), capped at one photo per line of writing, 20, and the number of distinct shots. The estimate comes back on screen with text on images, where the amount of text per photo matters.
+
 So the user has an idea of the post's size before adding photos, a live line under the text box: "About 4–6 photos. You can change this after matching."
 
 - **Rule:** count words and sentences. Fewest = the larger of words ÷ 40 and sentences ÷ 4. Most = the largest of words ÷ 25 and sentences ÷ 2. Never more than the number of sentences; at least 1; at most 20 (Instagram's limit). Round up.

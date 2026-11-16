@@ -44,8 +44,8 @@ export function ConsentStep({
       <StepBar current={1} />
       <h1>Before anything is sent</h1>
       <p className="lede">
-        To find the photos that fit your words, Inkreel uses Google’s Gemini AI. This is what it sends, once for this
-        trip:
+        To find the photos that fit your words, Inkreel uses Google’s Gemini AI. This is what it sends, once for these
+        photos:
       </p>
       <ul className="consent card">
         <li>
