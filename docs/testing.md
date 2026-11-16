@@ -16,7 +16,7 @@ They use the Chrome installed on the machine, so there is no browser download. S
 - **By hand, start to post:** writing, adding photos, the photo count, matching by hand, choosing a photo for each part, adding a second photo to a part, remove and undo, the preview, the caption exactly as written, Copy, and changing a slide without repeating a shot. Nothing is sent to Gemini.
 - **The draft** survives a reload.
 - **Weak photos** are set aside with the right reasons, and one can be brought back; with a few photos nothing is set aside.
-- **Live matching** (skipped by default): `E2E_LIVE=1 npm run test:browser` runs real matching with Gemini and checks every photo gets a reason. It needs `GEMINI_API_KEY` in `web/.env` (and `INVITE_CODE` in the environment if one is set locally), takes about a minute and uses a little of the daily quota.
+- **Live matching** (skipped by default): `E2E_LIVE=1 npm run test:browser` runs real matching with Gemini and checks every photo gets a reason and the search call didn't fail (a silent fallback to the sentences fails the test). It needs `GEMINI_API_KEY` in `web/.env` (and `INVITE_CODE` in the environment if one is set locally), takes about a minute and uses a little of the daily quota.
 
 Any page error fails a test.
 
@@ -29,7 +29,7 @@ The browser tests can't cover these; check them by hand on a phone after changes
 - Whether the matches and reasons are good for real writing and real photos.
 - Whether the right photos are set aside from a real album.
 
-For a phone test, open the app once with `?tester=1`: the test record then goes to the server log when the post reaches the preview. Read it from `web/` with `npx vercel@65.15.0 logs` within about 30 minutes (Vercel's free plan keeps no more). Photo errors are logged the same way, as `[photo-report]`.
+For a phone test, open the app once with `?tester=1`: the test record then goes to the server log when the post reaches the preview. Read it from `web/` with `npx vercel@65.15.0 logs` within about 30 minutes (Vercel's free plan keeps no more). Photo errors are logged the same way, as `[photo-report]`; every Gemini call as `[gemini] <call> <model> <outcome> <ms>`, and every request as `[api] <path> <status> <ms>`. Ask the tester whether the screen went off or they left the browser during a slow step: phones pause the page then.
 
 ## When a test fails
 

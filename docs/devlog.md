@@ -136,7 +136,7 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Gap found in the copy review:** a post couldn't have more photos than the writing had lines, so a one-line caption with five photos gave one photo. That contradicted "add just the photos you want".
 - **Discussed with the owner first:** break by words, or let a line hold several photos? Lines stay the smallest unit (reasons in `decisions.md`); a part can hold several photos; per line rather than per stanza; photos inside a part in the order taken.
 - **Built:** extra photos assigned to the part they fit best, spread across parts; the count control goes up to the number of distinct shots; up to 10 shots the post starts with all of them; on the matches screen each photo has its own reason, "Change photo" and "Remove", and each part has "Add a photo"; joining two parts keeps both parts' photos; the check call covers every photo of a part, three at a time.
-- **Checked:** 81 tests; a two-line caption with five photos in Chrome through matching (five photos, each with a reason, one marked "No strong match"), remove, add, fewer photos, the preview and changing a slide. First run of the queries-v3 and check-v4 prompts against Gemini.
+- **Checked:** 81 tests; a two-line caption with five photos in Chrome through matching (five photos, each with a reason, one marked "No strong match"), remove, add, fewer photos, the preview and changing a slide. That live run fell back to the sentences (Gemini busy), so queries-v3 was first seen working on 16 Nov in the evening.
 
 ## 16 Nov 2026: weak photos set aside
 
@@ -153,10 +153,18 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 
 ## 16 Nov 2026: photos withdrawn by the phone mid-read
 
-- **Owner's phone test:** 28 of 32 photos left out again. The error report in the server log gave the cause for the first time: `NotReadableError` ("permission problems that have occurred after a reference to a file was acquired") on plain 2–6 MB JPEGs. Not HEIC and not memory, which the 13 Nov changes had assumed; that all 30 photos went in on 13 Nov was timing, not the fix.
-- **Likely cause:** the file picker was cleared straight after a pick (so the same photos could be picked again), and was disabled while reading. On Android either can withdraw access to files not yet read; only the first four were read in time.
+- **Owner's phone test:** 28 of 32 photos left out again. The error report in the server log gave the cause for the first time: `NotReadableError` ("permission problems that have occurred after a reference to a file was acquired") on plain 2–6 MB JPEGs. Not HEIC and not memory, which the 13 Nov changes had assumed. Why all 30 went in on 13 Nov is not established (possibly different photos or where they were picked from).
+- **Suspected cause (weak):** the file picker was cleared straight after a pick (so the same photos could be picked again), and was disabled while reading. On Android either can withdraw access to files not yet read; only the first four were read in time.
 - **Changed:** the picker is cleared only after every file has been read, and is no longer disabled during reading (the button blocks taps instead). Both suspects are changed together, so the test won't say which one it was.
 - **Not verified:** this can't be reproduced in desktop Chrome; only the owner's phone shows whether it holds.
+
+## 16 Nov 2026: second phone test, and slow matching
+
+- **The test:** the London poem and 30 photos; all 30 went in (the picker change, or different luck: not established). The post went all the way to Instagram; Share and Copy worked; five of six photos were Inkreel's picks.
+- **Found:** matching took almost 10 minutes. The search call failed (Google's "high demand" on Flash and Lite), the browser retried with long waits, and the owner turned the phone's screen off, which pauses the page. The change-photo list stopped at 18 of 29 shots. Odd text on the matching screen, which the owner put down to the failure.
+- **Checked directly:** Flash failed or hung 60 s; about 4 in 10 Lite requests got "high demand" within 2 s, the rest answered in 1–2 s, whatever the request settings.
+- **Changed:** Lite writes the searches, Flash once as fallback; "busy" retried on the server after 1 s and 2 s; time limits on every request and model call; photos and searches run together; the screen stays on while matching; a new matching screen (stages with a spinner, seconds counter, "Google's AI is busy… trying again in 3 s", "Match by hand instead" after 15 s); every call logged on the server and each stage's time in the test record; the change-photo list shows every shot, best first; the live browser test fails when the searches fall back. Details in `decisions.md` ("Waiting and failures in matching").
+- **Checked:** 90 unit tests, 5 browser tests, and the live test against Gemini under the same load: matching took about 3 s (searches 1.3 s on Lite). Screenshots of the matching screen at 3 s and 17 s with the search call held back on purpose.
 
 ## Where things stand (16 Nov 2026)
 

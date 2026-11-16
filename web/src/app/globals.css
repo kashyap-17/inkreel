@@ -403,6 +403,55 @@ button:disabled {
   border-style: dashed;
 }
 
+/* Matching: one row per stage, with a spinner on the running one. */
+.stages {
+  list-style: none;
+  padding: 16px;
+  margin: 0 0 8px;
+  display: grid;
+  gap: 10px;
+}
+
+.stage {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stage.waiting {
+  color: var(--muted);
+}
+
+.stage-mark {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.stage.running .stage-mark {
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage.running .stage-mark {
+    animation: none;
+  }
+}
+
 .set-aside {
   margin-top: 8px;
 }

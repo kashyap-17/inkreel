@@ -24,9 +24,10 @@ import { base64Jpeg } from "@/lib/photos/canvas";
 import { getPhoto, getVectors, kvGet, kvSet, putVector } from "@/lib/store/db";
 import { timeBonus, tripDays } from "./time";
 
+/** Progress of matching; looking at the photos and reading the writing run at the same time. */
 export type Stage =
   | { kind: "index"; done: number; total: number }
-  | { kind: "queries" }
+  | { kind: "queries"; status: "running" | "done" | "fellBack" }
   | { kind: "match" }
   | { kind: "check"; done: number; total: number };
 
@@ -109,7 +110,7 @@ async function sentenceSearches(
   days: number,
   onStage: (s: Stage) => void,
 ): Promise<{ queries: SavedQuery[]; fellBack: boolean; model?: string }> {
-  onStage({ kind: "queries" });
+  onStage({ kind: "queries", status: "running" });
   const saved = (await kvGet<Record<string, SavedQuery>>(QUERIES_KEY)) ?? {};
   let fellBack = false;
   let model: string | undefined;
@@ -147,6 +148,7 @@ async function sentenceSearches(
     at += q.readings.length;
   }
   if (!fellBack) await kvSet(QUERIES_KEY, saved);
+  onStage({ kind: "queries", status: fellBack ? "fellBack" : "done" });
   return { queries: state.sentences.map((s) => saved[s.text]!), fellBack, model };
 }
 
@@ -164,11 +166,18 @@ export async function runMatching(
   target: number,
   onStage: (s: Stage) => void,
 ): Promise<{ match: MatchData; cards: Card[] }> {
+  const started = Date.now();
   const topPicks = state.stacks.map((k) => k.topPick);
-  const vectors = await indexPhotos(topPicks, onStage);
   const byId = new Map(state.photos.map((p) => [p.id, p]));
   const { dayOf, count } = tripDays(state.photos);
-  const { queries, fellBack, model } = await sentenceSearches(state, count, onStage);
+  const since = () => Date.now() - started;
+  // Independent steps, so they run together: the wait is the longer of the two, not both.
+  const [indexed, searched] = await Promise.all([
+    indexPhotos(topPicks, onStage).then((vectors) => ({ vectors, ms: since() })),
+    sentenceSearches(state, count, onStage).then((result) => ({ ...result, ms: since() })),
+  ]);
+  const vectors = indexed.vectors;
+  const { queries, fellBack, model } = searched;
 
   onStage({ kind: "match" });
   const candidates = state.stacks
@@ -200,6 +209,7 @@ export async function runMatching(
     fixed: {},
     queriesModel: model,
     searchesFellBack: fellBack,
+    timings: { photosMs: indexed.ms, searchesMs: searched.ms, totalMs: since() },
     notes,
   };
   return { match, cards: proposeCards(match, target, stackLookup(state), stanzaBreaks(state)) };

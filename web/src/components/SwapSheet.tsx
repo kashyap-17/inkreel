@@ -7,8 +7,6 @@ import { formatTime } from "@/lib/photos/format";
 import { AROUND_MINUTES } from "@/lib/photos/stacks";
 import { Photo } from "./Photo";
 
-const ELSEWHERE = 18;
-
 /**
  * Choosing a photo for one part: Inkreel's next picks, the same scene, around then, elsewhere.
  * `replacing` is the photo being changed, or null when adding one more photo to the part.
@@ -56,7 +54,8 @@ export function SwapSheet({
     const start = match.sentenceIds.indexOf(card.sentenceIds[0]!);
     const end = match.sentenceIds.indexOf(card.sentenceIds[card.sentenceIds.length - 1]!) + 1;
     const order = start >= 0 && end > start ? rankCandidates(makeRangeScorer(match.scores, match.candidates.length), start, end) : [];
-    elsewhere = take(order.map((i) => match.candidates[i]!.photoId)).slice(0, ELSEWHERE);
+    // Every photo, best fit first; any that weren't matched (not looked at this time) at the end.
+    elsewhere = take([...order.map((i) => match.candidates[i]!.photoId), ...state.stacks.map((k) => k.topPick)]);
   } else {
     elsewhere = take(state.photos.map((p) => p.id));
   }

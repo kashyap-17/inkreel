@@ -25,6 +25,19 @@ export async function handle<S extends z.ZodType>(
   schema: S,
   run: (input: z.infer<S>) => Promise<unknown>,
 ): Promise<Response> {
+  const started = Date.now();
+  const path = new URL(request.url).pathname;
+  const response = await respond(request, schema, run);
+  // One line per request in the server log, so a slow or failed run can be traced afterwards.
+  console.log(`[api] ${path} ${response.status} ${Date.now() - started}ms`);
+  return response;
+}
+
+async function respond<S extends z.ZodType>(
+  request: Request,
+  schema: S,
+  run: (input: z.infer<S>) => Promise<unknown>,
+): Promise<Response> {
   try {
     checkInvite(request);
     let body: unknown;

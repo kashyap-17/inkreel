@@ -44,14 +44,42 @@ function retryAfter(message: string): number | undefined {
   return m ? Math.ceil(Number(m[1])) : undefined;
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Runs one Gemini call and writes a line to the server log (call, model, outcome, time).
+ * When Google answers "busy" (503), which under load happens at random to a share of
+ * requests, it tries again after 1 s and 2 s rather than failing the step.
+ */
+async function call<T>(name: string, model: string, run: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    const started = Date.now();
+    try {
+      const result = await run();
+      console.log(`[gemini] ${name} ${model} ok ${Date.now() - started}ms attempt ${attempt}`);
+      return result;
+    } catch (e) {
+      const status = e instanceof ApiError ? e.status : e instanceof TimeoutError ? "timeout" : "error";
+      console.log(`[gemini] ${name} ${model} ${status} ${Date.now() - started}ms attempt ${attempt}`);
+      if (!(e instanceof ApiError && e.status === 503) || attempt >= BUSY_TRIES) throw e;
+      await sleep(1000 * attempt);
+    }
+  }
+}
+
+/** Attempts per Gemini call when Google answers "busy". */
+const BUSY_TRIES = 3;
+
 /** One vector per image. Each image is its own entry, so vectors aren't merged. */
 export async function embedImages(images: string[]): Promise<number[][]> {
   try {
-    const res = await ai().models.embedContent({
-      model: MODELS.embed,
-      contents: images.map((data) => ({ parts: [{ inlineData: { mimeType: "image/jpeg", data } }] })),
-      config: { outputDimensionality: EMBED_DIMENSIONS },
-    });
+    const res = await call("embed-images", MODELS.embed, () =>
+      ai().models.embedContent({
+        model: MODELS.embed,
+        contents: images.map((data) => ({ parts: [{ inlineData: { mimeType: "image/jpeg", data } }] })),
+        config: { outputDimensionality: EMBED_DIMENSIONS },
+      }),
+    );
     return vectorsOf(res.embeddings, images.length);
   } catch (e) {
     rethrow(e);
@@ -61,11 +89,13 @@ export async function embedImages(images: string[]): Promise<number[][]> {
 /** One vector per search text, with Gemini Embedding 2's search-query prefix. */
 export async function embedTexts(texts: string[]): Promise<number[][]> {
   try {
-    const res = await ai().models.embedContent({
-      model: MODELS.embed,
-      contents: texts.map((t) => ({ parts: [{ text: `task: search result | query: ${t}` }] })),
-      config: { outputDimensionality: EMBED_DIMENSIONS },
-    });
+    const res = await call("embed-texts", MODELS.embed, () =>
+      ai().models.embedContent({
+        model: MODELS.embed,
+        contents: texts.map((t) => ({ parts: [{ text: `task: search result | query: ${t}` }] })),
+        config: { outputDimensionality: EMBED_DIMENSIONS },
+      }),
+    );
     return vectorsOf(res.embeddings, texts.length);
   } catch (e) {
     rethrow(e);
@@ -84,31 +114,33 @@ function vectorsOf(embeddings: { values?: number[] }[] | undefined, expected: nu
 class TimeoutError extends Error {}
 
 async function generateJson(
+  name: string,
   model: string,
   parts: Part[],
   schema: object,
   thinkingLevel: ThinkingLevel,
-  timeoutMs?: number,
+  timeoutMs: number,
 ): Promise<unknown> {
-  let res;
-  try {
-    res = await ai().models.generateContent({
-      model,
-      contents: [{ role: "user", parts }],
-      config: {
-        responseMimeType: "application/json",
-        responseJsonSchema: schema,
-        temperature: 0.4,
-        thinkingConfig: { thinkingLevel },
-        ...(timeoutMs ? { abortSignal: AbortSignal.timeout(timeoutMs) } : {}),
-      },
-    });
-  } catch (e) {
-    if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
-      throw new TimeoutError(`${model} took longer than ${timeoutMs} ms`);
+  const res = await call(name, model, async () => {
+    try {
+      return await ai().models.generateContent({
+        model,
+        contents: [{ role: "user", parts }],
+        config: {
+          responseMimeType: "application/json",
+          responseJsonSchema: schema,
+          temperature: 0.4,
+          thinkingConfig: { thinkingLevel },
+          abortSignal: AbortSignal.timeout(timeoutMs),
+        },
+      });
+    } catch (e) {
+      if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
+        throw new TimeoutError(`${model} took longer than ${timeoutMs} ms`);
+      }
+      throw e;
     }
-    throw e;
-  }
+  });
   const text = res.text;
   if (!text) throw new ServerError(502, "Gemini returned an empty reply.");
   try {
@@ -119,10 +151,12 @@ async function generateJson(
 }
 
 /**
- * How long Flash gets to write the searches before Lite takes over. Flash usually answers in
- * 5–30 s; the route stops at 60 s, so this leaves Lite time to answer.
+ * Time limits for one attempt at writing the searches: Lite normally answers in 1–2 s; Flash,
+ * the fallback, gets one longer try. Together they stay inside the route's 60 s.
  */
-const QUERIES_TIMEOUT_MS = 35_000;
+const QUERIES_TIMEOUT_MS = { primary: 12_000, fallback: 20_000 };
+/** Checking a batch of photos (Lite, small images) normally takes 3–15 s. */
+const CHECK_TIMEOUT_MS = 40_000;
 
 /** Call 2: up to three photo descriptions and time hints for every sentence. */
 export async function searchQueries(req: QueriesRequest): Promise<QueriesReply> {
@@ -130,8 +164,8 @@ export async function searchQueries(req: QueriesRequest): Promise<QueriesReply> 
   const ids = req.sentences.map((s) => s.id);
 
   const attempt = async (model: string, extra = ""): Promise<QueriesReply> => {
-    const timeout = model === MODELS.queries ? QUERIES_TIMEOUT_MS : undefined;
-    const raw = await generateJson(model, [{ text: prompt + extra }], QUERIES_SCHEMA, ThinkingLevel.LOW, timeout);
+    const timeout = model === MODELS.queries ? QUERIES_TIMEOUT_MS.primary : QUERIES_TIMEOUT_MS.fallback;
+    const raw = await generateJson("queries", model, [{ text: prompt + extra }], QUERIES_SCHEMA, ThinkingLevel.LOW, timeout);
     const parsed = SentenceQuery.array().safeParse((raw as { queries?: unknown })?.queries);
     if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "bad shape");
     const byId = new Map(parsed.data.map((q) => [q.id, q]));
@@ -153,8 +187,8 @@ export async function searchQueries(req: QueriesRequest): Promise<QueriesReply> 
   try {
     return await run(MODELS.queries);
   } catch (e) {
-    // Flash's free daily quota is small, it is sometimes overloaded (503), and it can be slow;
-    // fall back to Lite rather than fail the trip. The reply says which model ran.
+    // Lite stayed busy (503), hit its quota (429) or was slow: one try with Flash, then the
+    // browser searches with the sentences themselves. The reply says which model ran.
     if ((e instanceof ApiError && (e.status === 429 || e.status === 503)) || e instanceof TimeoutError) {
       try {
         return await run(MODELS.queriesFallback);
@@ -185,7 +219,7 @@ export async function checkMatches(req: CheckRequest): Promise<CheckReply> {
   });
 
   try {
-    const raw = await generateJson(MODELS.check, parts, CHECK_SCHEMA, ThinkingLevel.MINIMAL);
+    const raw = await generateJson("check", MODELS.check, parts, CHECK_SCHEMA, ThinkingLevel.MINIMAL, CHECK_TIMEOUT_MS);
     const parsed = CheckReply.safeParse(raw);
     if (!parsed.success) throw new ServerError(502, "Gemini's check reply was invalid.");
     return parsed.data;

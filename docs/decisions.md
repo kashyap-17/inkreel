@@ -167,7 +167,7 @@ Used to index photos, write search queries, check matches and write reasons, and
 | Call | Model | Why |
 |---|---|---|
 | 1. Index photos (images) | Gemini Embedding 2 | One request per photo; free limits fit ~100 photos a minute. |
-| 2. Search queries (text) | Gemini 3.6 Flash | One request per trip; reading the user's writing well is the judgement the product depends on. |
+| 2. Search queries (text) | Gemini 3.5 Flash Lite (since 16 Nov), Flash once as fallback | Planned on Flash for its judgement; in tests Flash took 25 s or more and hung under load, Lite answers in 1–2 s. See "Waiting and failures" below. |
 | 3. Check and explain (small images) | Gemini 3.5 Flash Lite | A few requests per trip; confirming and naming a visible detail is the easier task. |
 | 4. Help me write (text) | Gemini 3.6 Flash | One request; writing that goes into the user's post. |
 | 5. Mix suggestions (text) | Gemini 3.6 Flash | Same reason as call 4. |
@@ -215,6 +215,18 @@ Asked for by the owner: matching should only choose from photos worth posting. U
 - **With 10 photos or fewer, nothing is set aside:** the user picked them on purpose. Everything is never set aside either.
 - **Cautious starting values:** only the obviously bad. On the owner's first trip the sharpest photo scored 3,274 and the softest 308, so 30 leaves room; tune on real photos (the test record lists what was set aside and each photo's numbers).
 - **Not done:** a general "looks good" score for ties between close matches (see Open).
+
+## Waiting and failures in matching (16 Nov 2026)
+
+On the owner's phone test matching took almost 10 minutes. The search call failed (Google's "high demand" answer, 503, on both Flash and Lite), the browser retried it with long waits, and the phone paused the page when its screen went off. Direct calls the same evening: Flash failed or hung for 60 s; about 4 in 10 Lite requests got "high demand" within 2 s, whatever the settings, and the rest answered in 1–2 s.
+
+- **Lite writes the searches;** Flash gets one try (20 s) only if Lite stays busy; then the sentences themselves are searched. Readings on Lite are looser; check them in the owner's next tests.
+- **"Busy" is retried on the server** after 1 s and 2 s (three attempts per call), not by the browser with long waits.
+- **Nothing can hang:** every browser request stops after 65 s; every model call has a time limit (searches 12 s on Lite, check 40 s); the browser makes one search request and waits at most 20 s before any retry.
+- **Photos and searches run at the same time** after consent.
+- **The screen is kept on** during matching (screen wake lock).
+- **The wait follows the 0.1 / 1 / 10 second rule:** the button answers at once; a list of the three stages with a spinner on the running one, a seconds counter and "usually under 20 seconds"; when Google is busy, "Google's AI is busy right now. Trying again in 3 s…"; after 15 s, "Match by hand instead" while matching carries on.
+- **Every call is logged** on the server (`[gemini] queries gemini-3.5-flash-lite ok 1299ms attempt 1`, `[api] /api/queries 200 1307ms`), and the test record has each stage's time, so a slow run can be traced.
 
 ## Tester mode and error reports (13 Nov 2026)
 

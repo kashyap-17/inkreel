@@ -104,6 +104,7 @@ export function buildTestRecord(
       byHand: match.byHand,
       queriesModel: match.queriesModel ?? null,
       searchesFellBack: match.searchesFellBack ?? false,
+      timings: match.timings ?? null,
       notes: match.notes,
       target: state.target,
       candidates: match.candidates,

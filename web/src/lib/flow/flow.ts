@@ -68,6 +68,8 @@ export interface MatchData {
   queriesModel?: string;
   /** True when the searches couldn't be written and the sentences themselves were searched. */
   searchesFellBack?: boolean;
+  /** How long matching took, in ms from its start: photos indexed, searches written and embedded, all done. */
+  timings?: { photosMs: number; searchesMs: number; totalMs: number };
   /** Shown to the user, e.g. when some photos couldn't be indexed. */
   notes: string[];
 }

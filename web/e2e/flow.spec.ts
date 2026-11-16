@@ -113,6 +113,8 @@ test("live: real matching gives every photo a reason", async ({ page }) => {
   test.skip(process.env.E2E_LIVE !== "1", "Set E2E_LIVE=1 to run real matching with Gemini.");
   test.setTimeout(300_000);
   await writeAndAddPhotos(page, (p) => goodPhotos(p, 5));
+  // Tester mode, so a failed search call shows on the matches screen and fails this test.
+  await page.goto("/?tester=1");
   await page.getByRole("button", { name: "Next: find matches" }).click();
   await page.getByLabel("Invite code").fill(process.env.INVITE_CODE ?? "");
   await page.getByRole("button", { name: "Send and find matches" }).click();
@@ -120,4 +122,5 @@ test("live: real matching gives every photo a reason", async ({ page }) => {
   await expect(page.getByText("Checking the matches and writing reasons…")).toHaveCount(0, { timeout: 120_000 });
   await expect(page.locator(".match-row")).toHaveCount(5);
   await expect(page.locator(".match-row .why p")).toHaveCount(5);
+  await expect(page.getByText("the search call failed")).toHaveCount(0);
 });
