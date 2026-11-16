@@ -84,11 +84,6 @@ export function ReviewStep({
           Undo
         </button>
       </div>
-      {checking && (
-        <p className="small muted" aria-live="polite">
-          Checking the matches and writing reasons…
-        </p>
-      )}
 
       <ol className="cards">
         {state.cards.map((card, i) => (
@@ -204,7 +199,7 @@ function MatchCard({
                 {verdict ? (
                   <p>{verdict.reason}</p>
                 ) : status === "suggested" && checking ? (
-                  <p className="muted">Checking…</p>
+                  <p className="muted">Adding why it fits…</p>
                 ) : null}
                 <div className="row card-actions">
                   <button type="button" className="secondary small-button" onClick={() => onChoose(photoId)}>

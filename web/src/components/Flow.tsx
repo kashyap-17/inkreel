@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { APP_NAME } from "@/config/app";
+import { BUILD_ID } from "@/config/build";
 import { AiError, sendTestRecord } from "@/lib/ai/client";
 import {
   canGoTo,
@@ -130,8 +131,8 @@ export function Flow() {
     checkingFor.current = uncheckedKey;
     setChecking(true);
     const snapshot = latest.current;
-    checkCards(snapshot, snapshot.cards)
-      .then((verdicts) => rawDispatch({ type: "verdicts", verdicts }))
+    // Reasons appear part by part as each answer arrives.
+    checkCards(snapshot, snapshot.cards, undefined, (verdicts) => rawDispatch({ type: "verdicts", verdicts }))
       .catch((e: unknown) => {
         if (e instanceof AiError && e.status === 401) setConsentMessage("That invite code isn’t right.");
       })
@@ -152,6 +153,34 @@ export function Flow() {
     sentRecord.current = postKey;
     void currentRecord(latest.current).then(sendTestRecord, () => {});
   }, [tester, postKey, state.match?.byHand]);
+
+  // A page left open keeps its old code after an update. When the server runs a newer build,
+  // reload at a safe moment (the draft is saved on the device, so nothing is lost), once per build.
+  const stepNow = useRef(state.step);
+  useEffect(() => {
+    stepNow.current = state.step;
+  });
+  useEffect(() => {
+    if (BUILD_ID === "dev") return;
+    let lastCheck = 0;
+    const check = async () => {
+      if (document.visibilityState !== "visible" || Date.now() - lastCheck < 60_000) return;
+      lastCheck = Date.now();
+      try {
+        const { build } = (await (await fetch("/api/version", { cache: "no-store" })).json()) as { build?: string };
+        if (!build || build === "dev" || build === BUILD_ID || stepNow.current === "matching") return;
+        if (sessionStorage.getItem("inkreel.reloadedFor") === build) return;
+        sessionStorage.setItem("inkreel.reloadedFor", build);
+        await kvSet(DRAFT_KEY, { version: DRAFT_VERSION, state: latest.current } satisfies SavedDraft);
+        window.location.reload();
+      } catch {
+        // Offline or storage blocked: try again next time the page is shown.
+      }
+    };
+    void check();
+    document.addEventListener("visibilitychange", check);
+    return () => document.removeEventListener("visibilitychange", check);
+  }, []);
 
   const startOver = useCallback(async () => {
     if (!window.confirm("Start over? This deletes your writing, photos and matches from this device.")) return;

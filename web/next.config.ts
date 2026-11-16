@@ -10,6 +10,8 @@ const lanAddresses = Object.values(networkInterfaces())
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // The commit being built, built into the page so it can tell when the server has a newer one.
+  env: { NEXT_PUBLIC_BUILD_ID: process.env.VERCEL_GIT_COMMIT_SHA ?? "dev" },
   allowedDevOrigins: lanAddresses,
 };
 

@@ -238,6 +238,8 @@ export async function checkCards(
   state: FlowState,
   cards: Card[],
   onStage?: (s: Stage) => void,
+  /** Called with each batch's results as they arrive. */
+  onVerdicts?: (verdicts: Record<string, Verdict>) => void,
 ): Promise<Record<string, Verdict>> {
   const match = state.match;
   if (!match || match.byHand) return {};
@@ -254,7 +256,9 @@ export async function checkCards(
   let done = 0;
   onStage?.({ kind: "check", done, total: todo.length });
 
-  for (const batch of chunked(todo, CHUNKS_PER_CHECK_REQUEST)) {
+  // Two requests at a time, so a busy answer on one doesn't hold up the rest.
+  await pool(chunked(todo, CHUNKS_PER_CHECK_REQUEST), 2, async (batch) => {
+    const found: Record<string, Verdict> = {};
     try {
       const chunks = await Promise.all(
         batch.map(async ({ id, card, photoIds }) => {
@@ -278,15 +282,17 @@ export async function checkCards(
         const item = batch.find((b) => b.id === result.chunkId);
         if (!item) continue;
         for (const v of result.photos) {
-          verdicts[verdictKey(item.card.sentenceIds, v.id)] = { fits: v.fits, reason: v.reason };
+          found[verdictKey(item.card.sentenceIds, v.id)] = { fits: v.fits, reason: v.reason };
         }
       }
     } catch (e) {
       if (e instanceof AiError && e.status === 401) throw e;
       // Leave these photos unchecked.
     }
+    Object.assign(verdicts, found);
+    if (Object.keys(found).length) onVerdicts?.(found);
     done += batch.length;
     onStage?.({ kind: "check", done, total: todo.length });
-  }
+  });
   return verdicts;
 }
