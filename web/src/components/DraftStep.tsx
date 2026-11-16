@@ -42,10 +42,7 @@ export function DraftStep({
     <>
       <StepBar current={0} />
       <h1>Your lines</h1>
-      <p className="lede">
-        Drafted from your answers, with your own words <mark className="mine">highlighted</mark>. Change any line, or
-        drop it.
-      </p>
+      <p className="lede">Drafted from your answers. Change any line, or drop it.</p>
       <span className="label ai">Written with Inkreel</span>
 
       <ol className="draft-lines">
@@ -53,7 +50,13 @@ export function DraftStep({
           <LineItem key={line.id} line={line} answers={state.answers} dispatch={dispatch} />
         ))}
       </ol>
-      {state.draft.length === 0 && <p className="muted">No lines left. Draft again, or change your answers.</p>}
+      {state.draft.length === 0 ? (
+        <p className="muted">No lines left. Draft again, or change your answers.</p>
+      ) : (
+        <p className="small muted legend">
+          <mark className="mine">Highlighted</mark> words are yours.
+        </p>
+      )}
       {error && <p className="warn">{error}</p>}
       {busy && <DraftingNote />}
 

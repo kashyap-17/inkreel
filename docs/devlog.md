@@ -207,6 +207,15 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Owner's review of the wording and prompt:** "Anything else" stays (four sections); prompts move to `web/src/server/prompts/`, one file per call; status messages say "the AI" rather than Google; tapping Next with every section empty explains itself; prompt `draft-v2` keeps as many of the person's words as possible and every specific thing, with the line count following what they gave. The owner asked to try Flash first, then an older Flash, before Lite: compared on three short answers (see `decisions.md`), Flash wrote the same lines 15–40 s slower and 3.8 Flash was busy, so Lite stays.
 - **Checked:** 109 unit tests (quote checking, own-word highlighting, name flags, the reducer's new actions and mode switching), 15 browser tests (5 new for Write with Inkreel: the whole path, modes kept apart, a turned-down code, a busy then slow draft, a reload; 1 for the invite code), and one live draft with Gemini: 4 lines in about 7 s, all traced to the answers, nothing invented, staying very close to the answers' own words.
 
+## 16 Nov 2026: the owner's first draft, and the prompt reworked
+
+- **Owner's test:** the draft returned the owner's four answers in order with "It felt" added ("How blue the sky was / In Hyde Park with the birds around / It felt dreamy / Both nature and pubs etc were great"). The owner: it has just taken my words; it has to work as an Instagram post; never lines like "it felt dreamy".
+- **A mistake:** I agreed with the owner's description of the draft before I had their actual answers (the test record only reached the log at the preview). Fixed: in tester mode each new draft now goes to the log.
+- **Prompt reworked** v3 → v6 on Lite, tested each time on the owner's answers and six others (short, realistic, none in the prompt): see "Prompt history" in `decisions.md`. A code check catches "It felt …" lines and asks once more.
+- **Models:** both Flash models ran out of their free daily quota (about 20 each) during the comparisons, and Gemma 4 31B was overloaded, so today's tests are on Lite. Flash first is ready behind one switch for the owner's test on 17 Nov; tested that Lite steps in when Flash is out of quota.
+- **Wording from the owner's review:** "A few thoughts for your caption", "Write about one or more. A few words is enough. …", "Highlighted words are yours." under the lines.
+- **Collected for later (owner):** when the post uses every uploaded photo, skip the AI matching and go straight to the post (proposal pending).
+
 ## Where things stand (16 Nov 2026)
 
 **Done:** the core loop for "I have writing", end to end and deployed: words with a live photo estimate → photos (working copies, stacks) → consent → matching with reasons → review (swap, move a line, caption only, fewer/more, undo) → preview (change a photo, share, copy). The draft is saved on the device. Tested once on the owner's phone with a real trip. Write with Inkreel (answers → draft traced to them → the same flow) built 16 Nov, not yet tested by the owner.

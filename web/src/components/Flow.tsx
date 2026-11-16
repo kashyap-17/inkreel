@@ -157,6 +157,14 @@ export function Flow() {
     sentRecord.current = postKey;
     void currentRecord(latest.current).then(sendTestRecord, () => {});
   }, [tester, postKey, state.match?.byHand]);
+  // Write with Inkreel: each new draft also goes to the log, so its lines can be read straight away.
+  const sentDraft = useRef("");
+  const draftKey = state.step === "draft" ? state.draft.map((l) => l.text).join("|") : "";
+  useEffect(() => {
+    if (!tester || !draftKey || sentDraft.current === draftKey) return;
+    sentDraft.current = draftKey;
+    void currentRecord(latest.current).then(sendTestRecord, () => {});
+  }, [tester, draftKey]);
 
   // A page left open keeps its old code after an update. When the server runs a newer build,
   // reload at a safe moment (the draft is saved on the device, so nothing is lost), once per build.

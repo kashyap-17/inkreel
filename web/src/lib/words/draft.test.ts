@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkLines, draftText, findQuote, ownWords, unknownNames, type Answers } from "./draft";
+import { checkLines, draftText, findQuote, ownWords, statesFeeling, unknownNames, type Answers } from "./draft";
 
 const ANSWERS: Answers = {
   moment: "We got lost in the old market at dusk and didn't mind.",
@@ -98,5 +98,19 @@ describe("ownWords", () => {
 describe("draftText", () => {
   it("joins the lines, one per line, leaving out empty ones", () => {
     expect(draftText([{ text: " One. " }, { text: "" }, { text: "Two" }])).toBe("One.\nTwo");
+  });
+});
+
+describe("statesFeeling", () => {
+  it("catches lines that only state the feeling", () => {
+    for (const line of ["It felt dreamy", "everything felt dreamy and good,", "it all felt so calm", "I felt small", "What a day"]) {
+      expect(statesFeeling(line)).toBe(true);
+    }
+  });
+
+  it("leaves lines that carry the feeling in a detail", () => {
+    for (const line of ["breathing in the calm.", "full and happy.", "feeling small in a good way up there,", "Hyde Park, dreamy in the blue"]) {
+      expect(statesFeeling(line)).toBe(false);
+    }
   });
 });

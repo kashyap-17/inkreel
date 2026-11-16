@@ -30,7 +30,7 @@ async function fakeDraft(page: Page, sent: unknown[], status = 200) {
 async function startWriting(page: Page) {
   await page.goto("/?tester=0");
   await page.getByRole("button", { name: /Write with Inkreel/ }).click();
-  await expect(page.getByRole("heading", { name: "A few questions" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "A few thoughts for your caption" })).toBeVisible();
 }
 
 test.beforeEach(async ({ page }) => {
@@ -77,6 +77,7 @@ test("from answers to a draft traced to them, then on to a post by hand", async 
   await expect(page.locator(".label.ai", { hasText: "Written with Inkreel" })).toBeVisible();
   await expect(lines.nth(0)).toContainText("From your answer: “lost in the old market”");
   await expect(lines.nth(0).locator("mark.mine")).toHaveText(["Lost in the old market at dusk"]);
+  await expect(page.getByText("words are yours.")).toBeVisible();
   await expect(lines.nth(0).getByText("Check this line")).toHaveCount(0);
   // A quote that isn't in the answers is dropped, and the line flagged.
   await expect(lines.nth(1)).toContainText("Check this line");
@@ -185,7 +186,7 @@ test("a busy or slow draft says so, keeps the answers, and trying again works", 
 
   await next.click();
   await expect(page.getByRole("status")).toHaveText("Drafting your lines from your answers…");
-  await expect(page.getByRole("status")).toContainText("The AI is slow right now", { timeout: 9_000 });
+  await expect(page.getByRole("status")).toContainText("The AI is slow right now. Still trying…", { timeout: 9_000 });
   await expect(page.getByRole("heading", { name: "Your lines" })).toBeVisible({ timeout: 10_000 });
   await expect(page.locator(".draft-line")).toHaveCount(4);
 });

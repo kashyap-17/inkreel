@@ -1,6 +1,6 @@
 // The only place that talks to Gemini. Runs on the server, where the API key lives.
 import { ApiError, GoogleGenAI, ThinkingLevel, type Part } from "@google/genai";
-import { EMBED_DIMENSIONS, MODELS } from "@/config/ai";
+import { DRAFT_FLASH_FIRST, EMBED_DIMENSIONS, MODELS } from "@/config/ai";
 import {
   CheckReply,
   DraftedLine,
@@ -11,6 +11,7 @@ import {
   type DraftRequest,
   type QueriesRequest,
 } from "@/lib/ai/schemas";
+import { statesFeeling } from "@/lib/words/draft";
 import { CHECK_SCHEMA, CHECK_TASK, DRAFT_SCHEMA, draftPrompt, QUERIES_SCHEMA, queriesPrompt } from "./prompts";
 
 let client: GoogleGenAI | null = null;
@@ -166,7 +167,8 @@ interface Backups {
   deadlineMs: number;
 }
 
-function firstAnswer<T>(backups: Backups, attempt: (msLeft: number) => Promise<T>): Promise<T> {
+/** `attempt` gets the time left and which attempt it is (0 for the first), e.g. to pick a model. */
+function firstAnswer<T>(backups: Backups, attempt: (msLeft: number, index: number) => Promise<T>): Promise<T> {
   const started = Date.now();
   const left = () => backups.deadlineMs - (Date.now() - started);
   return new Promise<T>((resolve, reject) => {
@@ -196,9 +198,9 @@ function firstAnswer<T>(backups: Backups, attempt: (msLeft: number) => Promise<T
     const exhausted = () => launched >= backups.maxAttempts || left() <= 1_000;
     const launch = () => {
       if (settled || exhausted()) return;
-      launched++;
+      const index = launched++;
       running++;
-      attempt(left()).then(
+      attempt(left(), index).then(
         (reply) => finish(() => resolve(reply)),
         (e: unknown) => {
           running--;
@@ -218,8 +220,15 @@ const QUERIES: Backups = { resendAfterMs: [0, 4_000, 8_000], maxAttempts: 4, dea
 /** Checking a batch of photos (Lite, small images): normally 2–10 s; hangs of 36–40 s seen. */
 const CHECK: Backups = { resendAfterMs: [0, 8_000, 16_000], maxAttempts: 4, deadlineMs: 30_000 };
 
-/** Drafting lines (Lite, text only): normally 1–6 s; one 40 s hang seen, so backups at 6 s and 12 s. */
-const DRAFT: Backups = { resendAfterMs: [0, 6_000, 12_000], maxAttempts: 4, deadlineMs: 25_000 };
+/**
+ * Drafting lines (text only). Lite: normally 1–6 s, one 40 s hang seen, so backups at 6 s and 12 s.
+ * Flash first (DRAFT_FLASH_FIRST): Flash took 13–43 s in tests, so Lite steps in only at 20 s, or
+ * at once if Flash is busy or out of its daily quota.
+ */
+const DRAFT: Backups = DRAFT_FLASH_FIRST
+  ? { resendAfterMs: [0, 20_000, 26_000], maxAttempts: 4, deadlineMs: 40_000 }
+  : { resendAfterMs: [0, 6_000, 12_000], maxAttempts: 4, deadlineMs: 25_000 };
+const draftModel = (index: number) => (DRAFT_FLASH_FIRST && index === 0 ? MODELS.draftFlash : MODELS.draft);
 
 /** Call 2: up to three photo descriptions and time hints for every sentence. */
 export async function searchQueries(req: QueriesRequest): Promise<QueriesReply> {
@@ -268,11 +277,20 @@ export async function checkMatches(req: CheckRequest): Promise<CheckReply> {
  */
 export async function writeDraft(req: DraftRequest): Promise<DraftReply> {
   const prompt = draftPrompt(req.answers);
-  const model = MODELS.draft;
-  return firstAnswer(DRAFT, async (msLeft) => {
-    const raw = await generateJson("draft", model, [{ text: prompt }], DRAFT_SCHEMA, ThinkingLevel.LOW, msLeft, 1, 0.9);
-    const parsed = DraftedLine.array().min(1).max(12).safeParse((raw as { lines?: unknown })?.lines);
-    if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "bad shape");
-    return { lines: parsed.data, model };
-  });
+  const ask = () =>
+    firstAnswer(DRAFT, async (msLeft, index) => {
+      const model = draftModel(index);
+      const raw = await generateJson("draft", model, [{ text: prompt }], DRAFT_SCHEMA, ThinkingLevel.LOW, msLeft, 1, 0.9);
+      const parsed = DraftedLine.array().min(1).max(12).safeParse((raw as { lines?: unknown })?.lines);
+      if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "bad shape");
+      return { lines: parsed.data, model };
+    });
+  const started = Date.now();
+  const first = await ask();
+  // A line that just states the feeling ("it felt dreamy") gets one more try, if there's time
+  // left before the route's 60 s limit; the cleaner draft wins.
+  if (!first.lines.some((l) => statesFeeling(l.text)) || Date.now() - started > 15_000) return first;
+  console.log("[gemini] draft states the feeling; asking once more");
+  const second = await ask().catch(() => null);
+  return second && !second.lines.some((l) => statesFeeling(l.text)) ? second : first;
 }

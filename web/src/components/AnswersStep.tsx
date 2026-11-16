@@ -56,10 +56,10 @@ export function AnswersStep({
   return (
     <>
       <StepBar current={0} />
-      <h1>A few questions</h1>
+      <h1>A few thoughts for your caption</h1>
       <p className="lede">
-        Answer any of them, in a few words or more. Inkreel drafts short lines from what you write here, and only from
-        that.
+        Write about one or more. A few words is enough. Inkreel turns them into short lines and finds the photos that go
+        with them.
       </p>
 
       <div className="answers">

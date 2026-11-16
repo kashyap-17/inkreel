@@ -13,7 +13,7 @@ export function DraftingNote() {
     <p className="small muted drafting" role="status">
       <span className="spinner" aria-hidden="true" />{" "}
       {slow
-        ? "The AI is slow right now. Still trying, for up to half a minute."
+        ? "The AI is slow right now. Still trying…"
         : "Drafting your lines from your answers…"}
     </p>
   );

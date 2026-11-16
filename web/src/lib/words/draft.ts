@@ -85,6 +85,14 @@ export function unknownNames(line: string, answers: Answers): string[] {
     .map((m) => m[0]);
 }
 
+/**
+ * A line that only states or sums up the feeling ("It felt dreamy", "everything felt so calm",
+ * "What a day"): the prompt forbids these, but small models still write them sometimes.
+ */
+export function statesFeeling(line: string): boolean {
+  return /\b(it|everything|all|this|that)\s+(all\s+)?(felt|feels)\b|\bi\s+felt\b|^\s*what an?\b/i.test(line);
+}
+
 /** Turns the model's lines into draft lines: quotes checked against the answers, doubtful lines flagged. */
 export function checkLines(answers: Answers, drafted: DraftedLine[]): DraftLine[] {
   const seen = new Set<string>();

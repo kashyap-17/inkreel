@@ -907,3 +907,7 @@ mark.mine {
     animation: none;
   }
 }
+
+.legend {
+  margin: 4px 0 0;
+}
