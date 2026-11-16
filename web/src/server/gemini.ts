@@ -51,7 +51,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * When Google answers "busy" (503), which under load happens at random to a share of
  * requests, it tries again after 1 s and 2 s rather than failing the step.
  */
-async function call<T>(name: string, model: string, run: () => Promise<T>): Promise<T> {
+async function call<T>(name: string, model: string, run: () => Promise<T>, busyTries = BUSY_TRIES): Promise<T> {
   for (let attempt = 1; ; attempt++) {
     const started = Date.now();
     try {
@@ -61,7 +61,7 @@ async function call<T>(name: string, model: string, run: () => Promise<T>): Prom
     } catch (e) {
       const status = e instanceof ApiError ? e.status : e instanceof TimeoutError ? "timeout" : "error";
       console.log(`[gemini] ${name} ${model} ${status} ${Date.now() - started}ms attempt ${attempt}`);
-      if (!(e instanceof ApiError && e.status === 503) || attempt >= BUSY_TRIES) throw e;
+      if (!(e instanceof ApiError && e.status === 503) || attempt >= busyTries) throw e;
       await sleep(1000 * attempt);
     }
   }
@@ -120,6 +120,7 @@ async function generateJson(
   schema: object,
   thinkingLevel: ThinkingLevel,
   timeoutMs: number,
+  busyTries = BUSY_TRIES,
 ): Promise<unknown> {
   const res = await call(name, model, async () => {
     try {
@@ -140,7 +141,7 @@ async function generateJson(
       }
       throw e;
     }
-  });
+  }, busyTries);
   const text = res.text;
   if (!text) throw new ServerError(502, "Gemini returned an empty reply.");
   try {
@@ -164,8 +165,18 @@ export async function searchQueries(req: QueriesRequest): Promise<QueriesReply> 
   const ids = req.sentences.map((s) => s.id);
 
   const attempt = async (model: string, extra = ""): Promise<QueriesReply> => {
-    const timeout = model === MODELS.queries ? QUERIES_TIMEOUT_MS.primary : QUERIES_TIMEOUT_MS.fallback;
-    const raw = await generateJson("queries", model, [{ text: prompt + extra }], QUERIES_SCHEMA, ThinkingLevel.LOW, timeout);
+    const primary = model === MODELS.queries;
+    const timeout = primary ? QUERIES_TIMEOUT_MS.primary : QUERIES_TIMEOUT_MS.fallback;
+    // The fallback gets a single try, so the whole call stays inside the route's 60 s.
+    const raw = await generateJson(
+      "queries",
+      model,
+      [{ text: prompt + extra }],
+      QUERIES_SCHEMA,
+      ThinkingLevel.LOW,
+      timeout,
+      primary ? BUSY_TRIES : 1,
+    );
     const parsed = SentenceQuery.array().safeParse((raw as { queries?: unknown })?.queries);
     if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "bad shape");
     const byId = new Map(parsed.data.map((q) => [q.id, q]));

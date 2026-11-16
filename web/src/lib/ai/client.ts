@@ -54,7 +54,14 @@ const REQUEST_TIMEOUT_MS = 65_000;
 /** The longest a request waits before trying again. */
 const MAX_WAIT_S = 20;
 
-async function post<S extends z.ZodType>(path: string, body: unknown, schema: S, tries: number): Promise<z.infer<S>> {
+/** `connectionOnly`: retry only when the connection drops, not when the server answers with an error. */
+async function post<S extends z.ZodType>(
+  path: string,
+  body: unknown,
+  schema: S,
+  tries: number,
+  connectionOnly = false,
+): Promise<z.infer<S>> {
   let lastError: AiError | null = null;
   for (let attempt = 0; attempt < tries; attempt++) {
     const last = attempt === tries - 1;
@@ -83,7 +90,7 @@ async function post<S extends z.ZodType>(path: string, body: unknown, schema: S,
     const { error, retryAfterSeconds } = data as { error?: string; retryAfterSeconds?: number };
     lastError = new AiError(error ?? `Request failed (${res.status}).`, res.status);
     // Rate limit, busy model or a passing server error: wait and try again. Anything else is final.
-    if (![429, 502, 503, 504].includes(res.status)) throw lastError;
+    if (connectionOnly || ![429, 502, 503, 504].includes(res.status)) throw lastError;
     if (last) break;
     const seconds = Math.min(MAX_WAIT_S, retryAfterSeconds ?? 2 * (attempt + 1));
     waitListener?.({ seconds, reason: res.status === 429 ? "limit" : "busy" });
@@ -93,8 +100,11 @@ async function post<S extends z.ZodType>(path: string, body: unknown, schema: S,
 }
 
 export const embed = (req: EmbedRequest) => post("/api/embed", req, EmbedReply, 4);
-/** One try: the server already retries a busy model and falls back; after that, the sentences are searched. */
-export const searchQueries = (req: QueriesRequest) => post("/api/queries", req, QueriesReply, 1);
+/**
+ * The server already retries a busy model and falls back, so an error answer is final (the
+ * sentences are then searched). A dropped connection, as when a phone sleeps, is tried once more.
+ */
+export const searchQueries = (req: QueriesRequest) => post("/api/queries", req, QueriesReply, 2, true);
 export const checkMatches = (req: CheckRequest) => post("/api/check", req, CheckReply, 2);
 
 /** Confirms the invite code with the server before anything is sent. */

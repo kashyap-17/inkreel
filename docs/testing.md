@@ -15,6 +15,7 @@ They use the Chrome installed on the machine, so there is no browser download. S
 - **Start screen:** the two choices, and no "trip" or "hundreds" in the copy.
 - **By hand, start to post:** writing, adding photos, the photo count, matching by hand, choosing a photo for each part, adding a second photo to a part, remove and undo, the preview, the caption exactly as written, Copy, and changing a slide without repeating a shot. Nothing is sent to Gemini.
 - **The draft** survives a reload.
+- **Matching with staged server answers** (`e2e/matching.spec.ts`, no Gemini): quick matching shows the stages and ends on the matches; a slow search call offers "Match by hand instead", and a by-hand post isn't replaced when the abandoned run finishes.
 - **Weak photos** are set aside with the right reasons, and one can be brought back; with a few photos nothing is set aside.
 - **Live matching** (skipped by default): `E2E_LIVE=1 npm run test:browser` runs real matching with Gemini and checks every photo gets a reason and the search call didn't fail (a silent fallback to the sentences fails the test). It needs `GEMINI_API_KEY` in `web/.env` (and `INVITE_CODE` in the environment if one is set locally), takes about a minute and uses a little of the daily quota.
 

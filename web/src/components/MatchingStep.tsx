@@ -67,6 +67,15 @@ export function MatchingStep({
   const [startedAt, setStartedAt] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
   const started = useRef(-1);
+  // Set when the user leaves this screen (e.g. "Match by hand instead"), so a run that finishes
+  // later doesn't replace what they did meanwhile.
+  const left = useRef(false);
+  useEffect(() => {
+    left.current = false;
+    return () => {
+      left.current = true;
+    };
+  }, []);
 
   // The seconds counter, so the screen never stands still.
   useEffect(() => {
@@ -107,15 +116,20 @@ export function MatchingStep({
     if (started.current === attempt) return;
     started.current = attempt;
     const target = state.target ?? defaultTarget(state);
+    const thisAttempt = attempt;
+    const current = () => !left.current && started.current === thisAttempt;
     runMatching(state, target, (stage) => {
+      if (!current()) return;
       setWait(null);
       setProgress((p) => advance(p, stage));
     })
       .then(({ match, cards }) => {
+        if (!current()) return;
         if (match.timings) logEvent({ at: new Date().toISOString(), action: "matchingTimes", detail: match.timings });
         dispatch({ type: "matched", match, cards, target });
       })
       .catch((e: unknown) => {
+        if (!current()) return;
         if (e instanceof AiError && e.status === 401) onInviteRejected("That invite code isn’t right.");
         else setError(e instanceof Error ? e.message : "Matching failed.");
       });
