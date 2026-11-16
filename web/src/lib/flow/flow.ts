@@ -1,8 +1,8 @@
 // The flow as a typed state machine (a reducer). Steps follow docs/plan.md:
 // words → photos → consent → matching → review → preview.
-import { chunkAndMatch, type Candidate } from "@/lib/match/chunk";
+import { chunkAndMatch, makeRangeScorer, MATCHING, type Candidate } from "@/lib/match/chunk";
 import type { PhotoRecord, Stack } from "@/lib/photos/types";
-import { estimatePhotos, type PhotoEstimate } from "@/lib/words/estimate";
+import { estimatePhotos, MAX_PHOTOS, type PhotoEstimate } from "@/lib/words/estimate";
 import { countWords, splitSentences } from "@/lib/words/sentences";
 
 export type Mode = "own" | "help" | "mix";
@@ -23,11 +23,19 @@ export interface Verdict {
   reason: string;
 }
 
-/** One slide: a run of consecutive sentences and the photo shown with them. */
+/** A further photo for a part that has more than one. */
+export interface ExtraPhoto {
+  photoId: string;
+  status: "suggested" | "swapped";
+}
+
+/** One part of the post: a run of consecutive sentences and the photo or photos that go with them. */
 export interface Card {
   id: string;
   sentenceIds: string[];
   photoId: string | null;
+  /** More photos for this part, when the post has more photos than parts. Empty unless `photoId` is set. */
+  extras: ExtraPhoto[];
   /** Next-best photos from other stacks, best first. */
   alternatives: string[];
   strength: "strong" | "weak";
@@ -53,6 +61,8 @@ export interface MatchData {
   byHand: boolean;
   /** Photos the user chose, keyed by the card's sentence IDs; kept when the writing is re-chunked. */
   fixed: Record<string, string>;
+  /** Extra photos the user chose for a part, keyed the same way. */
+  fixedExtras?: Record<string, string[]>;
   /** Which model wrote the photo searches (Flash, or Lite as the fallback); absent if none ran. */
   queriesModel?: string;
   /** True when the searches couldn't be written and the sentences themselves were searched. */
@@ -88,7 +98,10 @@ export type FlowAction =
   | { type: "setPhotos"; photos: PhotoRecord[]; stacks: Stack[] }
   | { type: "matched"; match: MatchData; cards: Card[]; target: number }
   | { type: "verdicts"; verdicts: Record<string, Verdict> }
-  | { type: "swap"; cardId: string; photoId: string }
+  /** `replacing`: which of the card's photos to change; the first when left out. */
+  | { type: "swap"; cardId: string; photoId: string; replacing?: string }
+  | { type: "addPhoto"; cardId: string; photoId: string }
+  | { type: "removePhoto"; cardId: string; photoId: string }
   | { type: "moveSentence"; cardId: string; to: "previous" | "next" }
   | { type: "toggleCaptionOnly"; cardId: string }
   | { type: "setTarget"; target: number }
@@ -109,6 +122,53 @@ export const initialFlow: FlowState = {
 };
 
 export const verdictKey = (sentenceIds: string[], photoId: string) => `${sentenceIds.join(",")}|${photoId}`;
+
+/** Every photo of a card: the first, then the extras. */
+export const cardPhotoIds = (card: Pick<Card, "photoId" | "extras">): string[] =>
+  card.photoId ? [card.photoId, ...card.extras.map((e) => e.photoId)] : [];
+
+/** Takes a photo out of a card; an extra moves up when the first photo goes. */
+function withoutPhoto(card: Card, photoId: string): Card {
+  if (card.photoId !== photoId) return { ...card, extras: card.extras.filter((e) => e.photoId !== photoId) };
+  const [next, ...rest] = card.extras;
+  return next
+    ? { ...card, photoId: next.photoId, status: next.status, extras: rest }
+    : { ...card, photoId: null, status: "swapped" };
+}
+
+/** Puts the user's photo in a card: in place of `old`, or as one more photo when `old` is null. */
+function withPhoto(card: Card, old: string | null, photoId: string): Card {
+  if (!card.photoId || card.photoId === old) {
+    return {
+      ...card,
+      photoId,
+      status: "swapped",
+      textChanged: false,
+      captionOnly: false,
+      alternatives: card.photoId ? [card.photoId, ...card.alternatives.filter((p) => p !== photoId)] : card.alternatives,
+    };
+  }
+  const extras = old
+    ? card.extras.map((e) => (e.photoId === old ? { photoId, status: "swapped" as const } : e))
+    : [...card.extras, { photoId, status: "swapped" as const }];
+  return { ...card, extras, captionOnly: false };
+}
+
+/** Records which photos are the user's own choices, so re-chunking keeps them. */
+function remember(match: MatchData | null, cards: Card[]): MatchData | null {
+  if (!match) return match;
+  const fixed = { ...match.fixed };
+  const fixedExtras = { ...match.fixedExtras };
+  for (const card of cards) {
+    const key = card.sentenceIds.join(",");
+    if (card.status === "swapped" && card.photoId) fixed[key] = card.photoId;
+    else delete fixed[key];
+    const chosen = card.extras.filter((e) => e.status === "swapped").map((e) => e.photoId);
+    if (chosen.length) fixedExtras[key] = chosen;
+    else delete fixedExtras[key];
+  }
+  return { ...match, fixed, fixedExtras };
+}
 
 const HISTORY_LIMIT = 30;
 const withHistory = (state: FlowState, cards: Card[]): FlowState => ({
@@ -138,7 +198,13 @@ export function canGoTo(state: FlowState, step: Step): boolean {
 export function flowReducer(state: FlowState, action: FlowAction): FlowState {
   switch (action.type) {
     case "restore":
-      return { ...initialFlow, ...action.state };
+      // Drafts saved before parts could hold several photos have no `extras`.
+      return {
+        ...initialFlow,
+        ...action.state,
+        cards: (action.state.cards ?? []).map((c) => ({ ...c, extras: c.extras ?? [] })),
+        history: (action.state.history ?? []).map((cards) => cards.map((c) => ({ ...c, extras: c.extras ?? [] }))),
+      };
 
     case "reset":
       return initialFlow;
@@ -194,31 +260,40 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
     case "swap": {
       const card = state.cards.find((c) => c.id === action.cardId);
       if (!card) return state;
+      const old = action.replacing ?? card.photoId;
+      if (old === action.photoId) return state;
       // A post never repeats a shot: if another slide shows this scene, the two slides trade photos.
       const stackOf = stackLookup(state);
-      const other = state.cards.find(
-        (c) => c.id !== card.id && !c.captionOnly && c.photoId && stackOf(c.photoId) === stackOf(action.photoId),
-      );
-      const fixed = { ...state.match?.fixed, [card.sentenceIds.join(",")]: action.photoId };
-      if (other) {
-        if (card.photoId) fixed[other.sentenceIds.join(",")] = card.photoId;
-        else delete fixed[other.sentenceIds.join(",")];
-      }
-      const match = state.match && { ...state.match, fixed };
-      const chosen = (c: Card, photoId: string | null): Card => ({
-        ...c,
-        photoId,
-        status: "swapped",
-        textChanged: false,
-        captionOnly: false,
-        alternatives: c.photoId ? [c.photoId, ...c.alternatives.filter((p) => p !== photoId)] : c.alternatives,
+      const shown = (c: Card) =>
+        c.captionOnly ? undefined : cardPhotoIds(c).find((p) => p !== old && stackOf(p) === stackOf(action.photoId));
+      const holder = state.cards.find(shown);
+      if (holder?.id === card.id) return state;
+      const cards = state.cards.map((c) => {
+        if (c.id === card.id) return withPhoto(c, old, action.photoId);
+        if (c.id !== holder?.id) return c;
+        return old ? withPhoto(c, shown(c)!, old) : withoutPhoto(c, shown(c)!);
       });
-      return withHistory(
-        { ...state, match },
-        state.cards.map((c) =>
-          c.id === card.id ? chosen(c, action.photoId) : c.id === other?.id ? chosen(c, card.photoId) : c,
-        ),
-      );
+      return withHistory({ ...state, match: remember(state.match, cards) }, cards);
+    }
+
+    case "addPhoto": {
+      const card = state.cards.find((c) => c.id === action.cardId);
+      if (!card) return state;
+      const stackOf = stackLookup(state);
+      const same = (c: Card) => cardPhotoIds(c).find((p) => stackOf(p) === stackOf(action.photoId));
+      if (!card.captionOnly && same(card)) return state;
+      // A photo that is in another part moves here.
+      const cards = state.cards.map((c) => {
+        if (c.id === card.id) return withPhoto(c, null, action.photoId);
+        const there = c.captionOnly ? undefined : same(c);
+        return there ? withoutPhoto(c, there) : c;
+      });
+      return withHistory({ ...state, match: remember(state.match, cards) }, cards);
+    }
+
+    case "removePhoto": {
+      const cards = state.cards.map((c) => (c.id === action.cardId ? withoutPhoto(c, action.photoId) : c));
+      return withHistory({ ...state, match: remember(state.match, cards) }, cards);
     }
 
     case "moveSentence": {
@@ -236,9 +311,16 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
         }
         return c;
       });
+      // A part left with no words goes; its photos join the part that took its words.
+      const emptied = cards[i]!.sentenceIds.length === 0 && !card.captionOnly ? cardPhotoIds(card) : [];
+      const merged = cards.map((c, k) =>
+        k === j && emptied.length
+          ? emptied.reduce((acc, p) => (cardPhotoIds(acc).includes(p) ? acc : withPhoto(acc, null, p)), c)
+          : c,
+      );
       return withHistory(
         state,
-        cards.filter((c) => c.sentenceIds.length > 0),
+        merged.filter((c) => c.sentenceIds.length > 0),
       );
     }
 
@@ -258,16 +340,8 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
     case "undo": {
       const previous = state.history[state.history.length - 1];
       if (!previous) return state;
-      // An undone swap is no longer the user's choice.
-      let match = state.match;
-      if (match) {
-        const fixed = { ...match.fixed };
-        for (const card of state.cards) {
-          const before = previous.find((c) => c.id === card.id);
-          if (card.status === "swapped" && before?.photoId !== card.photoId) delete fixed[card.sentenceIds.join(",")];
-        }
-        match = { ...match, fixed };
-      }
+      // An undone choice is no longer the user's choice.
+      const match = remember(state.match, previous);
       return { ...state, match, cards: previous, history: state.history.slice(0, -1) };
     }
   }
@@ -300,6 +374,7 @@ export function proposeCards(
       id: `c${i + 1}`,
       sentenceIds,
       photoId: fixed ?? chunk.photoId,
+      extras: [],
       alternatives: chunk.alternatives.filter((p) => p !== fixed),
       strength: chunk.strength,
       status: fixed ? "swapped" : "suggested",
@@ -317,13 +392,70 @@ export function proposeCards(
     card.alternatives = card.alternatives.filter((p) => p !== free);
     if (free) taken.add(stackOf(free));
   }
+
+  // More photos than parts: the user's extra choices first, then each further photo goes to the
+  // part it fits best. A part that already has photos is a little less likely to get another.
+  const used = new Set(cards.flatMap((c) => cardPhotoIds(c).map(stackOf)));
+  const count = () => cards.reduce((n, c) => n + cardPhotoIds(c).length, 0);
+  const want = Math.min(target, MAX_PHOTOS);
+  for (const card of cards) {
+    if (!card.photoId) continue;
+    for (const photoId of match.fixedExtras?.[card.sentenceIds.join(",")] ?? []) {
+      if (used.has(stackOf(photoId))) continue;
+      card.extras.push({ photoId, status: "swapped" });
+      used.add(stackOf(photoId));
+    }
+  }
+  if (candidates.length) {
+    const scorer = makeRangeScorer(scores, candidates.length);
+    const fit = chunks.map((chunk) => scorer(chunk.start, chunk.end));
+    while (count() < want) {
+      let best: { card: Card; photoId: string; value: number } | null = null;
+      cards.forEach((card, ci) =>
+        candidates.forEach((candidate, pi) => {
+          if (used.has(stackOf(candidate.photoId))) return;
+          const value = fit[ci]![pi]! - MATCHING.spreadWeight * cardPhotoIds(card).length;
+          if (!best || value > best.value) best = { card, photoId: candidate.photoId, value };
+        }),
+      );
+      if (!best) break;
+      const { card, photoId } = best as { card: Card; photoId: string };
+      if (card.photoId) card.extras.push({ photoId, status: "suggested" });
+      else card.photoId = photoId;
+      used.add(stackOf(photoId));
+    }
+  }
+  for (const card of cards) card.alternatives = card.alternatives.filter((p) => !used.has(stackOf(p)));
   return cards;
 }
 
-/** Most and fewest photos the user can ask for. */
+/** A card's photos in the order they were taken. */
+export function orderedPhotos(
+  state: Pick<FlowState, "photos">,
+  card: Pick<Card, "photoId" | "extras" | "status">,
+): { photoId: string; status: "suggested" | "swapped" }[] {
+  if (!card.photoId) return [];
+  const at = new Map(state.photos.map((p) => [p.id, p.takenAt]));
+  return [{ photoId: card.photoId, status: card.status }, ...card.extras]
+    .map((photo, i) => ({ photo, i }))
+    .sort((a, b) => (at.get(a.photo.photoId) ?? 0) - (at.get(b.photo.photoId) ?? 0) || a.i - b.i)
+    .map(({ photo }) => photo);
+}
+
+/** The post's slides in order: each part's photos, part by part. */
+export function slidesOf(state: Pick<FlowState, "photos" | "cards">): { cardId: string; photoId: string }[] {
+  return state.cards
+    .filter((c) => !c.captionOnly)
+    .flatMap((c) => orderedPhotos(state, c).map(({ photoId }) => ({ cardId: c.id, photoId })));
+}
+
+/**
+ * Most and fewest photos the user can ask for: up to one of every distinct shot. Matching by hand,
+ * the number sets how many parts the writing is split into, and the user adds photos to them.
+ */
 export function targetBounds(state: FlowState): { min: number; max: number } {
-  const stacks = state.match?.byHand ? state.photos.length : (state.match?.candidates.length ?? state.stacks.length);
-  return { min: 1, max: Math.max(1, Math.min(state.sentences.length, stacks || state.sentences.length, 20)) };
+  const most = state.match?.byHand ? state.sentences.length : (state.match?.candidates.length ?? state.stacks.length);
+  return { min: 1, max: Math.max(1, Math.min(most || state.sentences.length, MAX_PHOTOS)) };
 }
 
 /** The photo estimate for the current writing, capped at the number of distinct photos once added. */
@@ -343,13 +475,13 @@ export function stanzaBreaks(state: Pick<FlowState, "text" | "sentences">): bool
     .map((s, i) => /\n[^\S\n]*\n/.test(state.text.slice(s.end, state.sentences[i + 1]!.start)));
 }
 
-/**
- * True when the user added no more distinct photos than the writing needs: Inkreel then uses
- * every one and only decides which part each goes with.
- */
+/** Up to this many distinct photos, the post starts with all of them: the user picked them on purpose. */
+export const USE_ALL_UP_TO = 10;
+
+/** True when the user added few enough photos that Inkreel starts with every one. */
 export function usesEveryPhoto(state: FlowState): boolean {
   const estimate = wordsEstimate(state);
-  return estimate !== null && state.stacks.length > 0 && state.stacks.length <= estimate.max;
+  return state.stacks.length > 0 && state.stacks.length <= Math.max(USE_ALL_UP_TO, estimate?.max ?? 0);
 }
 
 /**

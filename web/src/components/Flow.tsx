@@ -5,9 +5,11 @@ import { APP_NAME } from "@/config/app";
 import { AiError, sendTestRecord } from "@/lib/ai/client";
 import {
   canGoTo,
+  cardPhotoIds,
   defaultTarget,
   flowReducer,
   initialFlow,
+  orderedPhotos,
   verdictKey,
   type FlowAction,
   type FlowState,
@@ -110,8 +112,12 @@ export function Flow() {
   const uncheckedKey =
     state.step === "review" && state.match && !state.match.byHand
       ? state.cards
-          .filter((c) => c.photoId && !c.captionOnly && c.status === "suggested")
-          .map((c) => verdictKey(c.sentenceIds, c.photoId!))
+          .filter((c) => !c.captionOnly)
+          .flatMap((c) =>
+            orderedPhotos(state, c)
+              .filter((photo) => photo.status === "suggested")
+              .map((photo) => verdictKey(c.sentenceIds, photo.photoId)),
+          )
           .filter((k) => !(k in state.match!.verdicts))
           .join(";")
       : "";
@@ -137,7 +143,9 @@ export function Flow() {
   const sentRecord = useRef("");
   const postKey =
     state.step === "preview"
-      ? state.cards.map((c) => `${c.sentenceIds.join(",")}:${c.captionOnly ? "-" : (c.photoId ?? "")}`).join("|")
+      ? state.cards
+          .map((c) => `${c.sentenceIds.join(",")}:${c.captionOnly ? "-" : cardPhotoIds(c).join("+")}`)
+          .join("|")
       : "";
   useEffect(() => {
     if (!tester || !postKey || sentRecord.current === postKey || state.match?.byHand !== false) return;

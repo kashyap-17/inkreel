@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { APP_NAME } from "@/config/app";
-import { captionOf, type FlowAction, type FlowState } from "@/lib/flow/flow";
+import { captionOf, slidesOf, type FlowAction, type FlowState } from "@/lib/flow/flow";
 import { getPhoto } from "@/lib/store/db";
 import { logEvent } from "@/lib/store/events";
 import { Photo } from "./Photo";
@@ -15,10 +15,10 @@ const MAX_CAPTION = 2200; // Instagram's caption limit
 export function PreviewStep({ state, dispatch }: { state: FlowState; dispatch: (a: FlowAction) => void }) {
   const [status, setStatus] = useState<{ text: string; copyAgain?: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [swapping, setSwapping] = useState<string | null>(null);
-  const slideCards = state.cards.filter((c) => c.photoId && !c.captionOnly);
-  const slides = slideCards.map((c) => c.photoId!);
-  const swapCard = state.cards.find((c) => c.id === swapping);
+  const [swapping, setSwapping] = useState<{ cardId: string; photoId: string } | null>(null);
+  const postSlides = slidesOf(state);
+  const slides = postSlides.map((slide) => slide.photoId);
+  const swapCard = state.cards.find((c) => c.id === swapping?.cardId);
   const caption = captionOf(state);
   const tooMany = slides.length > MAX_SLIDES;
   const tooLong = caption.length > MAX_CAPTION;
@@ -103,15 +103,15 @@ export function PreviewStep({ state, dispatch }: { state: FlowState; dispatch: (
       </p>
 
       <div className="slides" aria-label="Carousel">
-        {slideCards.map((card, i) => (
-          <div key={card.id} className="slide">
+        {postSlides.map((slide, i) => (
+          <div key={slide.photoId} className="slide">
             <button
               type="button"
               className="photo-button"
-              onClick={() => setSwapping(card.id)}
+              onClick={() => setSwapping(slide)}
               aria-label={`Change photo ${i + 1}`}
             >
-              <Photo id={card.photoId!} size="full" alt={`Slide ${i + 1}`} />
+              <Photo id={slide.photoId} size="full" alt={`Slide ${i + 1}`} />
             </button>
             <span className="slide-num">{i + 1}</span>
           </div>
@@ -126,9 +126,10 @@ export function PreviewStep({ state, dispatch }: { state: FlowState; dispatch: (
         <SwapSheet
           state={state}
           card={swapCard}
+          replacing={swapping!.photoId}
           onClose={() => setSwapping(null)}
           onPick={(photoId) => {
-            dispatch({ type: "swap", cardId: swapCard.id, photoId });
+            dispatch({ type: "swap", cardId: swapCard.id, photoId, replacing: swapping!.photoId });
             setSwapping(null);
           }}
         />

@@ -131,6 +131,13 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Changed:** "trip" and "hundreds" removed from every screen and the README; the photo estimate no longer shown on the words or photos screens; a "How many photos in your post?" control on the photos screen (the estimate only sets its starting number); start screen shows "I have writing" and "Write with Inkreel" (coming soon); the prompts sent to Gemini no longer say "trip" (queries-v3, check-v4), so non-trip posts aren't pulled towards travel scenes.
 - **Checked:** 75 tests; start, words and photos screens and the count control in Chrome, through matching by hand. The new prompt versions were not run against Gemini in this round.
 
+## 16 Nov 2026: more photos than lines
+
+- **Gap found in the copy review:** a post couldn't have more photos than the writing had lines, so a one-line caption with five photos gave one photo. That contradicted "add just the photos you want".
+- **Discussed with the owner first:** break by words, or let a line hold several photos? Lines stay the smallest unit (reasons in `decisions.md`); a part can hold several photos; per line rather than per stanza; photos inside a part in the order taken.
+- **Built:** extra photos assigned to the part they fit best, spread across parts; the count control goes up to the number of distinct shots; up to 10 shots the post starts with all of them; on the matches screen each photo has its own reason, "Change photo" and "Remove", and each part has "Add a photo"; joining two parts keeps both parts' photos; the check call covers every photo of a part, three at a time.
+- **Checked:** 81 tests; a two-line caption with five photos in Chrome through matching (five photos, each with a reason, one marked "No strong match"), remove, add, fewer photos, the preview and changing a slide. First run of the queries-v3 and check-v4 prompts against Gemini.
+
 ## Where things stand (16 Nov 2026)
 
 **Done:** the core loop for "I have writing", end to end and deployed: words with a live photo estimate → photos (working copies, stacks) → consent → matching with reasons → review (swap, move a line, caption only, fewer/more, undo) → preview (change a photo, share, copy). The draft is saved on the device. Tested once on the owner's phone with a real trip.

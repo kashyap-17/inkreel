@@ -1,7 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { cardText, targetBounds, verdictKey, type Card, type FlowAction, type FlowState } from "@/lib/flow/flow";
+import {
+  cardText,
+  orderedPhotos,
+  slidesOf,
+  targetBounds,
+  verdictKey,
+  type Card,
+  type FlowAction,
+  type FlowState,
+} from "@/lib/flow/flow";
 import { Photo } from "./Photo";
 import { StepBar } from "./StepBar";
 import { SwapSheet } from "./SwapSheet";
@@ -18,14 +27,16 @@ export function ReviewStep({
   dispatch: (a: FlowAction) => void;
   checking: boolean;
 }) {
-  const [swapping, setSwapping] = useState<string | null>(null);
+  // Which part's photo is being chosen: `replacing` is the photo to change, or null to add one more.
+  const [swapping, setSwapping] = useState<{ cardId: string; replacing: string | null } | null>(null);
   const tester = useTester();
   const match = state.match;
   const byHand = match?.byHand ?? false;
   const { min, max } = targetBounds(state);
-  const count = state.cards.length;
-  const withPhoto = state.cards.filter((c) => c.photoId && !c.captionOnly).length;
-  const swapCard = state.cards.find((c) => c.id === swapping);
+  const slides = slidesOf(state);
+  // Matching by hand, fewer/more changes how many parts the writing is split into.
+  const count = byHand ? state.cards.length : slides.length;
+  const swapCard = state.cards.find((c) => c.id === swapping?.cardId);
 
   return (
     <>
@@ -34,7 +45,7 @@ export function ReviewStep({
       <p className="lede">
         {byHand
           ? "Your writing, split into parts. Pick a photo for each."
-          : "Your writing, split into parts, each with the photo Inkreel picked and why. Change anything."}{" "}
+          : "Your writing, split into parts, with the photos Inkreel picked for each and why. Change anything."}{" "}
         The photos go in this order, and your words go in the caption.
       </p>
       {match?.notes.map((n) => (
@@ -47,14 +58,14 @@ export function ReviewStep({
       )}
 
       <div className="row toolbar">
-        <span className="small">{plural(count, "part", "parts")}</span>
+        <span className="small">{byHand ? plural(count, "part", "parts") : plural(count, "photo", "photos")}</span>
         <button
           type="button"
           className="secondary small-button"
           disabled={count <= min}
           onClick={() => dispatch({ type: "setTarget", target: count - 1 })}
         >
-          Fewer photos
+          {byHand ? "Fewer parts" : "Fewer photos"}
         </button>
         <button
           type="button"
@@ -62,7 +73,7 @@ export function ReviewStep({
           disabled={count >= max}
           onClick={() => dispatch({ type: "setTarget", target: count + 1 })}
         >
-          More photos
+          {byHand ? "More parts" : "More photos"}
         </button>
         <button
           type="button"
@@ -90,7 +101,8 @@ export function ReviewStep({
             checking={checking}
             tester={tester}
             dispatch={dispatch}
-            onSwap={() => setSwapping(card.id)}
+            numberOf={(photoId) => slides.findIndex((x) => x.cardId === card.id && x.photoId === photoId) + 1}
+            onChoose={(replacing) => setSwapping({ cardId: card.id, replacing })}
           />
         ))}
       </ol>
@@ -99,9 +111,13 @@ export function ReviewStep({
         <SwapSheet
           state={state}
           card={swapCard}
+          replacing={swapping!.replacing}
           onClose={() => setSwapping(null)}
           onPick={(photoId) => {
-            dispatch({ type: "swap", cardId: swapCard.id, photoId });
+            const replacing = swapping!.replacing;
+            if (replacing || !swapCard.photoId || swapCard.captionOnly) {
+              dispatch({ type: "swap", cardId: swapCard.id, photoId, ...(replacing ? { replacing } : {}) });
+            } else dispatch({ type: "addPhoto", cardId: swapCard.id, photoId });
             setSwapping(null);
           }}
         />
@@ -111,7 +127,7 @@ export function ReviewStep({
         <button type="button" className="secondary" onClick={() => dispatch({ type: "goTo", step: "photos" })}>
           Back to photos
         </button>
-        <button type="button" disabled={withPhoto === 0} onClick={() => dispatch({ type: "goTo", step: "preview" })}>
+        <button type="button" disabled={slides.length === 0} onClick={() => dispatch({ type: "goTo", step: "preview" })}>
           Next: preview
         </button>
       </div>
@@ -127,7 +143,8 @@ function MatchCard({
   checking,
   tester,
   dispatch,
-  onSwap,
+  numberOf,
+  onChoose,
 }: {
   state: FlowState;
   card: Card;
@@ -136,88 +153,117 @@ function MatchCard({
   checking: boolean;
   tester: boolean;
   dispatch: (a: FlowAction) => void;
-  onSwap: () => void;
+  /** The slide number of one of this part's photos. */
+  numberOf: (photoId: string) => number;
+  /** Opens the photo chooser: to change `replacing`, or to add a photo when null. */
+  onChoose: (replacing: string | null) => void;
 }) {
   const match = state.match;
-  const verdict = card.photoId ? match?.verdicts[verdictKey(card.sentenceIds, card.photoId)] : undefined;
+  const photos = card.captionOnly ? [] : orderedPhotos(state, card);
   const lookedFor = card.sentenceIds.map((id) => match?.lookedFor[id]).filter(Boolean) as string[];
   const lines = card.sentenceIds.length;
 
   return (
     <li className="card match">
-      <div className="match-photo">
-        {card.captionOnly ? (
-          <div className="placeholder">No photo</div>
-        ) : card.photoId ? (
-          <button type="button" className="photo-button" onClick={onSwap} aria-label="Change photo">
-            <Photo id={card.photoId} size="full" />
-          </button>
-        ) : (
-          <button type="button" className="placeholder" onClick={onSwap}>
-            Choose a photo
-          </button>
-        )}
-        <span className="slide-num">{index + 1}</span>
-      </div>
+      <p className="words">{cardText(state, card)}</p>
+      {card.textChanged && <span className="label weak">Words changed: check the photos</span>}
 
-      <div className="match-body">
-        <p className="words">
-          {cardText(state, card)}
-        </p>
-
-        {!card.captionOnly && card.photoId && (
-          <div className="why small">
-            <span className={`label ${card.status === "swapped" ? "you" : "ai"}`}>
-              {card.status === "swapped" ? "Chosen by you" : "Matched by Inkreel"}
-            </span>
-            {card.status === "suggested" && card.strength === "weak" && <span className="label weak">No strong match</span>}
-            {card.textChanged && <span className="label weak">Words changed: check this photo</span>}
-            {verdict ? (
-              <p>{verdict.reason}</p>
-            ) : card.status === "suggested" && checking ? (
-              <p className="muted">Checking…</p>
-            ) : null}
-            {tester && lookedFor.length > 0 && (
-              <details>
-                <summary>What Inkreel looked for</summary>
-                <p className="muted">{lookedFor.join("; ")}</p>
-              </details>
-            )}
-          </div>
-        )}
-
-        <div className="row card-actions">
-          {!card.captionOnly && (
-            <button type="button" className="secondary small-button" onClick={onSwap}>
-              {card.photoId ? "Change photo" : "Choose photo"}
+      {card.captionOnly ? (
+        <p className="small muted">No photo for this part. Its words stay in the caption.</p>
+      ) : photos.length === 0 ? (
+        <div className="match-row">
+          <div className="match-photo">
+            <button type="button" className="placeholder" onClick={() => onChoose(null)}>
+              Choose a photo
             </button>
-          )}
+          </div>
+        </div>
+      ) : (
+        photos.map(({ photoId, status }) => {
+          const verdict = match?.verdicts[verdictKey(card.sentenceIds, photoId)];
+          const weak =
+            status === "suggested" && (verdict ? !verdict.fits : photoId === card.photoId && card.strength === "weak");
+          return (
+            <div key={photoId} className="match-row">
+              <div className="match-photo">
+                <button
+                  type="button"
+                  className="photo-button"
+                  onClick={() => onChoose(photoId)}
+                  aria-label={`Change photo ${numberOf(photoId)}`}
+                >
+                  <Photo id={photoId} size="full" />
+                </button>
+                <span className="slide-num">{numberOf(photoId)}</span>
+              </div>
+              <div className="why small">
+                <span className={`label ${status === "swapped" ? "you" : "ai"}`}>
+                  {status === "swapped" ? "Chosen by you" : "Matched by Inkreel"}
+                </span>
+                {weak && <span className="label weak">No strong match</span>}
+                {verdict ? (
+                  <p>{verdict.reason}</p>
+                ) : status === "suggested" && checking ? (
+                  <p className="muted">Checking…</p>
+                ) : null}
+                <div className="row card-actions">
+                  <button type="button" className="secondary small-button" onClick={() => onChoose(photoId)}>
+                    Change photo
+                  </button>
+                  {photos.length > 1 && (
+                    <button
+                      type="button"
+                      className="link small"
+                      onClick={() => dispatch({ type: "removePhoto", cardId: card.id, photoId })}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })
+      )}
+
+      {tester && lookedFor.length > 0 && (
+        <details className="small">
+          <summary>What Inkreel looked for</summary>
+          <p className="muted">{lookedFor.join("; ")}</p>
+        </details>
+      )}
+
+      <div className="row card-actions">
+        {photos.length > 0 && (
+          <button type="button" className="secondary small-button" onClick={() => onChoose(null)}>
+            Add a photo
+          </button>
+        )}
+        <button
+          type="button"
+          className="secondary small-button"
+          onClick={() => dispatch({ type: "toggleCaptionOnly", cardId: card.id })}
+        >
+          {card.captionOnly ? "Use a photo" : photos.length > 1 ? "No photos for this part" : "No photo for this part"}
+        </button>
+        {index > 0 && (
           <button
             type="button"
-            className="secondary small-button"
-            onClick={() => dispatch({ type: "toggleCaptionOnly", cardId: card.id })}
+            className="link small"
+            onClick={() => dispatch({ type: "moveSentence", cardId: card.id, to: "previous" })}
           >
-            {card.captionOnly ? "Use a photo" : "No photo for this part"}
+            {lines === 1 ? "Join with the part above" : "Move first line up"}
           </button>
-          {index > 0 && (
-            <button
-              type="button"
-              className="link small"
-              onClick={() => dispatch({ type: "moveSentence", cardId: card.id, to: "previous" })}
-            >
-              {lines === 1 ? "Join with the part above" : "Move first line up"}
-            </button>
-          )}
-          {!last && (
-            <button
-              type="button"
-              className="link small"
-              onClick={() => dispatch({ type: "moveSentence", cardId: card.id, to: "next" })}
-            >
-              {lines === 1 ? "Join with the part below" : "Move last line down"}
-            </button>
-          )}
-        </div>
+        )}
+        {!last && (
+          <button
+            type="button"
+            className="link small"
+            onClick={() => dispatch({ type: "moveSentence", cardId: card.id, to: "next" })}
+          >
+            {lines === 1 ? "Join with the part below" : "Move last line down"}
+          </button>
+        )}
       </div>
     </li>
   );

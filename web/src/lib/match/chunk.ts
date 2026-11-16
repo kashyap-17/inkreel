@@ -29,6 +29,8 @@ export const MATCHING = {
   breakWeight: 0.1,
   /** A match is weak when it beats the typical photo by less than this. */
   weakMargin: 0.04,
+  /** When a post has more photos than parts: how much each photo a part already has counts against giving it another. */
+  spreadWeight: 0.03,
   alternatives: 2,
 };
 

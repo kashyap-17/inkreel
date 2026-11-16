@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import type { PhotoRecord } from "@/lib/photos/types";
 import {
   captionOf,
+  cardPhotoIds,
   cardText,
   defaultTarget,
   flowReducer,
   initialFlow,
   photoEstimate,
   proposeCards,
+  slidesOf,
   stanzaBreaks,
   usesEveryPhoto,
   verdictKey,
@@ -202,9 +204,14 @@ describe("stanzas and the photo count", () => {
     expect(defaultTarget(withPhotos(3))).toBe(3);
   });
 
+  it("starts with every photo when up to ten were added, however short the writing", () => {
+    expect(usesEveryPhoto(withPhotos(10))).toBe(true);
+    expect(defaultTarget(withPhotos(10))).toBe(10);
+  });
+
   it("otherwise aims for one photo per stanza", () => {
-    expect(usesEveryPhoto(withPhotos(10))).toBe(false);
-    expect(defaultTarget(withPhotos(10))).toBe(2);
+    expect(usesEveryPhoto(withPhotos(30))).toBe(false);
+    expect(defaultTarget(withPhotos(30))).toBe(2);
   });
 
   it("keeps a photo count chosen before matching, also when photos are added", () => {
@@ -217,5 +224,86 @@ describe("stanzas and the photo count", () => {
   it("keeps the caption exactly as written, whatever the parts", () => {
     const s = flowReducer(matchedState(), { type: "moveSentence", cardId: "c1", to: "next" });
     expect(captionOf(s)).toBe(POEM);
+  });
+});
+
+describe("more photos than parts", () => {
+  /** One line of writing and four photos; p1 fits best, then p3, p2, p4. */
+  function oneLine(): FlowState {
+    const ids = ["p1", "p2", "p3", "p4"];
+    const s = run(
+      { type: "chooseMode", mode: "own" },
+      { type: "setText", text: "Best weekend ever" },
+      {
+        type: "setPhotos",
+        photos: ids.map((id, i) => ({ ...photo(id), takenAt: i })),
+        stacks: ids.map((id, i) => ({ id: `k${i + 1}`, photoIds: [id], topPick: id })),
+      },
+    );
+    const match: MatchData = {
+      sentenceIds: ["s1"],
+      candidates: ids.map((photoId, i) => ({ photoId, stackId: `k${i + 1}` })),
+      scores: [[0.6, 0.4, 0.5, 0.3]],
+      lookedFor: {},
+      verdicts: {},
+      byHand: false,
+      fixed: {},
+      notes: [],
+    };
+    return flowReducer(s, { type: "matched", match, cards: proposeCards(match, 3), target: 3 });
+  }
+
+  it("gives one part several photos, best fits first, shown in the order taken", () => {
+    const s = oneLine();
+    expect(s.cards).toHaveLength(1);
+    expect(cardPhotoIds(s.cards[0]!)).toEqual(["p1", "p3", "p2"]);
+    expect(slidesOf(s).map((x) => x.photoId)).toEqual(["p1", "p2", "p3"]);
+  });
+
+  it("spreads extra photos across parts instead of piling them on one", () => {
+    // Two lines, four photos. p3 fits line 1 a little better (0.54 against 0.52), but line 1
+    // already has two photos by then, so it goes to line 2.
+    const match: MatchData = {
+      sentenceIds: ["s1", "s2"],
+      candidates: ["p1", "p2", "p3", "p4"].map((photoId, i) => ({ photoId, stackId: `k${i + 1}` })),
+      scores: [
+        [0.6, 0.55, 0.54, 0.1],
+        [0.1, 0.2, 0.52, 0.56],
+      ],
+      lookedFor: {},
+      verdicts: {},
+      byHand: false,
+      fixed: {},
+      notes: [],
+    };
+    expect(proposeCards(match, 4).map(cardPhotoIds)).toEqual([
+      ["p1", "p2"],
+      ["p4", "p3"],
+    ]);
+  });
+
+  it("changes one photo of a part, removes one, and adds one", () => {
+    let s = flowReducer(oneLine(), { type: "swap", cardId: "c1", photoId: "p4", replacing: "p3" });
+    expect(cardPhotoIds(s.cards[0]!)).toEqual(["p1", "p4", "p2"]);
+    s = flowReducer(s, { type: "removePhoto", cardId: "c1", photoId: "p1" });
+    expect(cardPhotoIds(s.cards[0]!)).toEqual(["p4", "p2"]);
+    s = flowReducer(s, { type: "addPhoto", cardId: "c1", photoId: "p3" });
+    expect(cardPhotoIds(s.cards[0]!)).toEqual(["p4", "p2", "p3"]);
+    expect(flowReducer(s, { type: "undo" }).cards[0]!.extras).toHaveLength(1);
+  });
+
+  it("keeps the user's extra photo when asking for more photos", () => {
+    let s = flowReducer(oneLine(), { type: "swap", cardId: "c1", photoId: "p4", replacing: "p3" });
+    s = flowReducer(s, { type: "setTarget", target: 4 });
+    expect(cardPhotoIds(s.cards[0]!)).toContain("p4");
+    expect(cardPhotoIds(s.cards[0]!)).toHaveLength(4);
+  });
+
+  it("moves a joined part's photos to the part that took its words", () => {
+    let s = matchedState();
+    s = flowReducer(s, { type: "moveSentence", cardId: "c2", to: "previous" });
+    s = flowReducer(s, { type: "moveSentence", cardId: "c2", to: "previous" });
+    expect(s.cards).toHaveLength(1);
+    expect(cardPhotoIds(s.cards[0]!)).toEqual(["p1", "p2"]);
   });
 });

@@ -256,7 +256,7 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
                 You can change this after matching.
               </p>
               {count >= bounds.max && bounds.max < shots && (
-                <p className="small muted">At most one photo per line of your writing.</p>
+                <p className="small muted">Instagram allows 20 photos in a post.</p>
               )}
             </div>
           </>

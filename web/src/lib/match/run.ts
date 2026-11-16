@@ -9,6 +9,7 @@ import {
 import { AiError, checkMatches, embed, searchQueries } from "@/lib/ai/client";
 import type { PartOfDay } from "@/lib/ai/schemas";
 import {
+  cardPhotoIds,
   cardText,
   proposeCards,
   stackLookup,
@@ -42,6 +43,9 @@ interface SavedQuery {
  * The key carries the search format: searches saved in an older format are not reused.
  */
 const QUERIES_KEY = "queries-v2";
+
+/** The check call takes up to three photos per piece of writing. */
+const PHOTOS_PER_CHECK = 3;
 
 async function pool<T>(items: T[], concurrency: number, work: (item: T) => Promise<void>) {
   let next = 0;
@@ -217,8 +221,8 @@ export function matchByHand(state: FlowState, target: number): { match: MatchDat
 }
 
 /**
- * Call 3: checks each suggested card's photo and its alternatives, and writes the reasons.
- * Cards that fail to check keep their match, shown with what Inkreel looked for.
+ * Call 3: checks each part's photos and its alternatives, and writes the reasons.
+ * Photos that fail to check keep their place, shown without a reason.
  */
 export async function checkCards(
   state: FlowState,
@@ -227,9 +231,15 @@ export async function checkCards(
 ): Promise<Record<string, Verdict>> {
   const match = state.match;
   if (!match || match.byHand) return {};
-  const todo = cards.filter(
-    (c) => c.photoId && !c.captionOnly && !(verdictKey(c.sentenceIds, c.photoId) in match.verdicts),
-  );
+  // One item per group of up to three photos of a part: its own photos first, then the alternatives.
+  const todo = cards.flatMap((card) => {
+    if (card.captionOnly) return [];
+    const own = cardPhotoIds(card).filter((id) => !(verdictKey(card.sentenceIds, id) in match.verdicts));
+    if (own.length === 0) return [];
+    const ids = [...own, ...card.alternatives.filter((id) => !(verdictKey(card.sentenceIds, id) in match.verdicts))];
+    const groups = chunked(ids, PHOTOS_PER_CHECK).slice(0, Math.ceil(own.length / PHOTOS_PER_CHECK));
+    return groups.map((photoIds, i) => ({ id: `${card.id}-${i + 1}`, card, photoIds }));
+  });
   const verdicts: Record<string, Verdict> = {};
   let done = 0;
   onStage?.({ kind: "check", done, total: todo.length });
@@ -237,34 +247,33 @@ export async function checkCards(
   for (const batch of chunked(todo, CHUNKS_PER_CHECK_REQUEST)) {
     try {
       const chunks = await Promise.all(
-        batch.map(async (card) => {
-          const photoIds = [card.photoId!, ...card.alternatives].slice(0, 3);
+        batch.map(async ({ id, card, photoIds }) => {
           const photos = await Promise.all(
-            photoIds.map(async (id) => {
-              const stored = await getPhoto(id);
-              if (!stored) throw new Error(`Photo ${id} is missing from this device.`);
-              return { id, image: await base64Jpeg(stored.full, CHECK_IMAGE_PX) };
+            photoIds.map(async (photoId) => {
+              const stored = await getPhoto(photoId);
+              if (!stored) throw new Error(`Photo ${photoId} is missing from this device.`);
+              return { id: photoId, image: await base64Jpeg(stored.full, CHECK_IMAGE_PX) };
             }),
           );
           return {
-            id: card.id,
+            id,
             text: cardText(state, card),
-            lookedFor: card.sentenceIds.map((id) => match.lookedFor[id] ?? "").join("; ").slice(0, 2000),
+            lookedFor: card.sentenceIds.map((s) => match.lookedFor[s] ?? "").join("; ").slice(0, 2000),
             photos,
           };
         }),
       );
       const reply = await checkMatches({ chunks });
       for (const result of reply.results) {
-        const card = batch.find((c) => c.id === result.chunkId);
-        if (!card) continue;
+        const item = batch.find((b) => b.id === result.chunkId);
+        if (!item) continue;
         for (const v of result.photos) {
-          verdicts[verdictKey(card.sentenceIds, v.id)] = { fits: v.fits, reason: v.reason };
+          verdicts[verdictKey(item.card.sentenceIds, v.id)] = { fits: v.fits, reason: v.reason };
         }
       }
     } catch (e) {
       if (e instanceof AiError && e.status === 401) throw e;
-      // Leave these cards unchecked; the review shows what Inkreel looked for instead.
+      // Leave these photos unchecked.
     }
     done += batch.length;
     onStage?.({ kind: "check", done, total: todo.length });
