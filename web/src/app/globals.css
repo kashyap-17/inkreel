@@ -403,6 +403,14 @@ button:disabled {
   border-style: dashed;
 }
 
+.set-aside {
+  margin-top: 8px;
+}
+
+.set-aside summary {
+  cursor: pointer;
+}
+
 .stepper {
   align-items: center;
   gap: 12px;

@@ -206,6 +206,16 @@ Free-tier limits on the owner's project (AI Studio, 7 Nov 2026):
 - **Sharing:** the phone's share sheet (Web Share API) or download. Posting to Instagram stays manual. The button is "Share", not "Share to Instagram" (13 Nov): the share sheet lists every app, and people also post to WhatsApp and other apps. The caption is copied in the same tap; a short guide covers pasting it in Instagram. Download is a text link, and Copy sits on the caption.
 - **Later:** single photo + caption, reels.
 
+## Weak photos are set aside before matching (16 Nov 2026)
+
+Asked for by the owner: matching should only choose from photos worth posting. Until now the only quality measure was sharpness, used to pick a stack's top pick.
+
+- **Set aside, in the browser, before stacking and indexing:** blurry (sharpness, the variance of the Laplacian at 256 px, under 30); nearly black (95% or more of the photo very dark, so a night photo with any lit area stays); washed out (90% or more nearly white); screenshots (the name says so, or a PNG with no camera time).
+- **Nothing is deleted.** The photos screen says how many were set aside and shows them with the reason; tapping one brings it back, and it is never set aside again.
+- **With 10 photos or fewer, nothing is set aside:** the user picked them on purpose. Everything is never set aside either.
+- **Cautious starting values:** only the obviously bad. On the owner's first trip the sharpest photo scored 3,274 and the softest 308, so 30 leaves room; tune on real photos (the test record lists what was set aside and each photo's numbers).
+- **Not done:** a general "looks good" score for ties between close matches (see Open).
+
 ## Tester mode and error reports (13 Nov 2026)
 
 Testing by screenshot was slow, and the server never sees photo problems because photos are opened on the phone.

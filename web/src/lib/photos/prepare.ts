@@ -4,6 +4,7 @@ import { canvas, context, fit, greyAt, resizeToJpeg } from "./canvas";
 import { readPhotoMeta } from "./exif";
 import { sniffFormat, type ImageFormat } from "./files";
 import { differenceHash, laplacianVariance } from "./pixels";
+import { exposure, looksLikeScreenshot } from "./quality";
 import type { PhotoRecord } from "./types";
 
 export const FULL_PX = 2048;
@@ -105,13 +106,16 @@ export async function preparePhoto(
   }
   try {
     const small = fit(bitmap.width, bitmap.height, SHARPNESS_PX);
+    const grey = greyAt(bitmap, small.width, small.height);
     const record: PhotoRecord = {
       ...meta,
       mimeType: "image/jpeg",
       width: bitmap.width,
       height: bitmap.height,
       hash: differenceHash(greyAt(bitmap, 9, 8)),
-      sharpness: laplacianVariance(greyAt(bitmap, small.width, small.height), small.width, small.height),
+      sharpness: laplacianVariance(grey, small.width, small.height),
+      ...exposure(grey),
+      screenshot: looksLikeScreenshot(file.name, file.type, meta.timeSource === "exif"),
     };
     const full = await resizeToJpeg(bitmap, FULL_PX, 0.85);
     const thumb = await resizeToJpeg(bitmap, THUMB_PX, 0.75);

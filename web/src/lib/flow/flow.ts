@@ -1,6 +1,7 @@
 // The flow as a typed state machine (a reducer). Steps follow docs/plan.md:
 // words → photos → consent → matching → review → preview.
 import { chunkAndMatch, makeRangeScorer, MATCHING, type Candidate } from "@/lib/match/chunk";
+import { buildStacks, sortByTime } from "@/lib/photos/stacks";
 import type { PhotoRecord, Stack } from "@/lib/photos/types";
 import { estimatePhotos, MAX_PHOTOS, type PhotoEstimate } from "@/lib/words/estimate";
 import { countWords, splitSentences } from "@/lib/words/sentences";
@@ -78,8 +79,10 @@ export interface FlowState {
   text: string;
   sentences: Sentence[];
   words: number;
-  /** Prepared photos in capture order. */
+  /** Prepared photos in capture order: the ones matching chooses from. */
   photos: PhotoRecord[];
+  /** Photos held back as blurry, too dark, washed out or screenshots; the user can bring any back. */
+  setAside: PhotoRecord[];
   stacks: Stack[];
   /** How many photos the post should have; set at matching, changed with fewer/more. */
   target: number | null;
@@ -95,7 +98,9 @@ export type FlowAction =
   | { type: "chooseMode"; mode: Mode }
   | { type: "setText"; text: string }
   | { type: "goTo"; step: Step }
-  | { type: "setPhotos"; photos: PhotoRecord[]; stacks: Stack[] }
+  | { type: "setPhotos"; photos: PhotoRecord[]; stacks: Stack[]; setAside?: PhotoRecord[] }
+  /** Brings a set-aside photo back into the photos matching chooses from. */
+  | { type: "usePhoto"; photoId: string }
   | { type: "matched"; match: MatchData; cards: Card[]; target: number }
   | { type: "verdicts"; verdicts: Record<string, Verdict> }
   /** `replacing`: which of the card's photos to change; the first when left out. */
@@ -114,6 +119,7 @@ export const initialFlow: FlowState = {
   sentences: [],
   words: 0,
   photos: [],
+  setAside: [],
   stacks: [],
   target: null,
   match: null,
@@ -233,7 +239,30 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
 
     case "setPhotos":
       // The photo count the user chose is kept; matches are redone with the new photos.
-      return { ...state, photos: action.photos, stacks: action.stacks, match: null, cards: [], history: [] };
+      return {
+        ...state,
+        photos: action.photos,
+        stacks: action.stacks,
+        setAside: action.setAside ?? [],
+        match: null,
+        cards: [],
+        history: [],
+      };
+
+    case "usePhoto": {
+      const photo = state.setAside.find((p) => p.id === action.photoId);
+      if (!photo) return state;
+      const photos = sortByTime([...state.photos, { ...photo, kept: true }]);
+      return {
+        ...state,
+        photos,
+        stacks: buildStacks(photos),
+        setAside: state.setAside.filter((p) => p.id !== action.photoId),
+        match: null,
+        cards: [],
+        history: [],
+      };
+    }
 
     case "matched":
       return { ...state, match: action.match, cards: action.cards, target: action.target, history: [], step: "review" };

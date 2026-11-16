@@ -138,6 +138,12 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Built:** extra photos assigned to the part they fit best, spread across parts; the count control goes up to the number of distinct shots; up to 10 shots the post starts with all of them; on the matches screen each photo has its own reason, "Change photo" and "Remove", and each part has "Add a photo"; joining two parts keeps both parts' photos; the check call covers every photo of a part, three at a time.
 - **Checked:** 81 tests; a two-line caption with five photos in Chrome through matching (five photos, each with a reason, one marked "No strong match"), remove, add, fewer photos, the preview and changing a slide. First run of the queries-v3 and check-v4 prompts against Gemini.
 
+## 16 Nov 2026: weak photos set aside
+
+- **Owner's question:** are poor photos filtered out before matching? They weren't: sharpness only chose between near-identical shots, so a blurry photo could be picked if its content fitted.
+- **Built:** blurry, nearly black, washed-out and screenshot photos are set aside when photos are added, before stacking and matching; the photos screen lists them with the reason and a tap brings one back. Nothing is set aside when 10 photos or fewer are added. Rules and values in `decisions.md`.
+- **Checked:** 90 tests; in Chrome with 14 files (a blurred copy, a black frame and a screenshot among good photos): the three were set aside with the right reasons, and bringing one back worked. Not yet tried on real weak photos, so the cut-offs are untested on a real album.
+
 ## Where things stand (16 Nov 2026)
 
 **Done:** the core loop for "I have writing", end to end and deployed: words with a live photo estimate → photos (working copies, stacks) → consent → matching with reasons → review (swap, move a line, caption only, fewer/more, undo) → preview (change a photo, share, copy). The draft is saved on the device. Tested once on the owner's phone with a real trip.
@@ -145,7 +151,7 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 **Waiting on the owner:** a second phone test of the 13 and 16 Nov changes (same poem and photos is fine, with `?tester=1` once so the record reaches the log); whether the caption pasted in Instagram after Share; the owner's own picks for the London poem, if a fuller comparison is wanted later.
 
 **Not built yet (in the plan):**
-- Setting aside blurry, badly exposed and screenshot photos ("view set-aside photos"); HEIC conversion when the browser can't decode it.
+- HEIC conversion when the browser can't decode it.
 - Reordering and dropping cards (caption only covers dropping a photo); "one photo" as a single tap; keeping swapped cards when photos are added after matching (adding photos currently re-matches everything).
 - Langfuse tracing and the consent opt-in for it (no Langfuse account yet). Until then, tester mode and the server log cover the owner's own tests.
 - Milestone 0 comparison with the owner's picks recorded first; tuning the stack window, hash threshold, time bonus, balance, blank-line cost and weak-match margin.

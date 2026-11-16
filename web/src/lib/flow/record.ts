@@ -3,6 +3,7 @@
 import { APP_NAME } from "@/config/app";
 import { EMBED_DIMENSIONS, MODELS, PROMPT_VERSIONS } from "@/config/ai";
 import { displayClock } from "@/lib/photos/format";
+import { photoIssue } from "@/lib/photos/quality";
 import { cardText, captionOf, verdictKey, type FlowAction, type FlowState } from "./flow";
 
 export const RECORD_VERSION = 1;
@@ -29,7 +30,11 @@ export function describeAction(action: FlowAction, at: Date): RecordEvent | null
     case "setText":
       return { at: stamp, action: "setText", detail: { characters: action.text.length } };
     case "setPhotos":
-      return { at: stamp, action: "setPhotos", detail: { photos: action.photos.length, stacks: action.stacks.length } };
+      return {
+        at: stamp,
+        action: "setPhotos",
+        detail: { photos: action.photos.length, stacks: action.stacks.length, setAside: action.setAside?.length ?? 0 },
+      };
     case "matched":
       return {
         at: stamp,
@@ -81,10 +86,20 @@ export function buildTestRecord(
       height: p.height,
       hash: p.hash,
       sharpness: round(p.sharpness),
+      dark: p.dark === undefined ? null : round(p.dark),
+      bright: p.bright === undefined ? null : round(p.bright),
       stack: stackOf.get(p.id) ?? null,
       topPick: topPicks.has(p.id),
     })),
     stacks: state.stacks,
+    setAside: state.setAside.map((p) => ({
+      id: p.id,
+      fileName: p.fileName,
+      issue: photoIssue(p),
+      sharpness: round(p.sharpness),
+      dark: p.dark === undefined ? null : round(p.dark),
+      bright: p.bright === undefined ? null : round(p.bright),
+    })),
     matching: match && {
       byHand: match.byHand,
       queriesModel: match.queriesModel ?? null,

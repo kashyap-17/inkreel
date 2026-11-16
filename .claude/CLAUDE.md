@@ -66,7 +66,7 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 - `web/src/components/`: screens (`Flow` holds the steps and saves the draft: start, words, photos, consent, matching, review, preview) and UI pieces.
 - `web/src/lib/flow/`: the flow as a typed reducer (steps, writing, photos, matches, review edits, undo), with tests.
 - `web/src/lib/words/`: sentence splitting (never changes the words) and the photo estimate, with tests.
-- `web/src/lib/photos/`: browser photo pipeline (EXIF, working copies, hash and sharpness, stacks), with unit tests next to each file (`*.test.ts`).
+- `web/src/lib/photos/`: browser photo pipeline (EXIF, working copies, hash and sharpness, setting weak photos aside, stacks), with unit tests next to each file (`*.test.ts`).
 - `web/src/lib/match/`: matching in the browser: time hints, chunking (plain code, tested) and the run that calls the server.
 - `web/src/lib/ai/`: request and reply schemas (Zod) shared with the server, and the browser client with retries.
 - `web/src/lib/store/`: the draft saved on the device (IndexedDB).

@@ -307,3 +307,24 @@ describe("more photos than parts", () => {
     expect(cardPhotoIds(s.cards[0]!)).toEqual(["p1", "p2"]);
   });
 });
+
+describe("set-aside photos", () => {
+  it("brings a set-aside photo back, restacks, and never sets it aside again", () => {
+    let s = run(
+      { type: "chooseMode", mode: "own" },
+      { type: "setText", text: POEM },
+      {
+        type: "setPhotos",
+        photos: [photo("p1")],
+        stacks: [{ id: "k1", photoIds: ["p1"], topPick: "p1" }],
+        setAside: [{ ...photo("p2"), takenAt: 5 * 60_000, sharpness: 2 }],
+      },
+    );
+    expect(s.setAside).toHaveLength(1);
+    s = flowReducer(s, { type: "usePhoto", photoId: "p2" });
+    expect(s.setAside).toEqual([]);
+    expect(s.photos.map((p) => p.id)).toEqual(["p1", "p2"]);
+    expect(s.photos[1]!.kept).toBe(true);
+    expect(s.stacks).toHaveLength(2);
+  });
+});

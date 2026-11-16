@@ -4,6 +4,7 @@ import { useState } from "react";
 import { defaultTarget, targetBounds, type FlowAction, type FlowState } from "@/lib/flow/flow";
 import { isPhoto } from "@/lib/photos/files";
 import { formatDay } from "@/lib/photos/format";
+import { ISSUE_LABEL, photoIssue, setAsideWeak } from "@/lib/photos/quality";
 import { buildStacks, sortByTime } from "@/lib/photos/stacks";
 import type { PhotoFailure } from "@/lib/photos/prepare";
 import type { PhotoRecord } from "@/lib/photos/types";
@@ -36,7 +37,9 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
     if (!list || list.length === 0) return;
     const all = Array.from(list);
     const images = all.filter(isPhoto);
-    const existing = replace ? [] : photos;
+    // Photos set aside earlier are judged again with the new ones.
+    const before = [...photos, ...state.setAside];
+    const existing = replace ? [] : before;
     const seen = new Set(existing.map((p) => `${p.fileName}|${p.takenAt}`));
     setStatus({ kind: "reading", done: 0, total: images.length });
 
@@ -94,12 +97,12 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
         report();
       }
 
-      if (replace && photos.length) {
+      if (replace && before.length) {
         forgetPhotoUrls();
-        await deletePhotos(photos.map((p) => p.id));
+        await deletePhotos(before.map((p) => p.id));
       }
-      const sorted = sortByTime([...existing, ...added]);
-      dispatch({ type: "setPhotos", photos: sorted, stacks: buildStacks(sorted) });
+      const { use, setAside } = setAsideWeak(sortByTime([...existing, ...added]));
+      dispatch({ type: "setPhotos", photos: use, stacks: buildStacks(use), setAside });
       setStatus({ kind: "done", videos: all.length - images.length, failures, repeats });
     } catch (e) {
       const detail = e instanceof Error ? `${e.name}: ${e.message}`.slice(0, 400) : String(e).slice(0, 400);
@@ -197,6 +200,29 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
                 <p className="muted small">
                   {plural(status.videos, "video was", "videos were")} left out. Inkreel works with photos for now.
                 </p>
+              )}
+              {state.setAside.length > 0 && (
+                <details className="set-aside">
+                  <summary className="small">
+                    {plural(state.setAside.length, "photo", "photos")} set aside as blurry, too dark or a screenshot.
+                    Inkreel won’t pick {state.setAside.length === 1 ? "it" : "them"}. View
+                  </summary>
+                  <p className="small muted">Tap a photo to use it after all.</p>
+                  <div className="thumbs pick">
+                    {state.setAside.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className="thumb"
+                        aria-label={`Use this photo (${ISSUE_LABEL[photoIssue(p) ?? "blurry"]})`}
+                        onClick={() => dispatch({ type: "usePhoto", photoId: p.id })}
+                      >
+                        <Photo id={p.id} />
+                        <span className="flag">{ISSUE_LABEL[photoIssue(p) ?? "blurry"]}</span>
+                      </button>
+                    ))}
+                  </div>
+                </details>
               )}
               {tester && (
                 <details>

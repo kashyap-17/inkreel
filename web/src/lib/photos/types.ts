@@ -23,6 +23,13 @@ export interface PhotoRecord extends PhotoMeta {
   hash: string;
   /** Variance of the Laplacian on a small greyscale copy; higher is sharper. */
   sharpness: number;
+  /** Share of the photo that is very dark, and very bright (0–1). Absent on photos saved before 16 Nov 2026. */
+  dark?: number;
+  bright?: number;
+  /** The file looks like a screenshot, not a camera photo. */
+  screenshot?: boolean;
+  /** The user brought this photo back after it was set aside; it is never set aside again. */
+  kept?: boolean;
 }
 
 /** Near-identical shots taken within a couple of minutes. A post uses at most one photo per stack. */
