@@ -92,7 +92,7 @@ function LineItem({
   dispatch: (a: FlowAction) => void;
 }) {
   const [editing, setEditing] = useState<string | null>(null);
-  const names = line.flagged && line.quote ? unknownNames(line.text, answers) : [];
+  const names = line.flagged ? unknownNames(line.text, answers) : [];
 
   if (editing !== null) {
     return (
@@ -143,12 +143,15 @@ function LineItem({
       <div className="small">
         {line.edited && <span className="label you">Edited by you</span>}
         {line.flagged && <span className="label weak">Check this line</span>}
-        {line.quote && !line.edited && <p className="muted source">From your answer: “{line.quote}”</p>}
-        {line.flagged && (
+        {!line.edited &&
+          (line.quote ? (
+            <p className="muted source">From your answer: “{line.quote}”</p>
+          ) : (
+            <p className="muted source">In Inkreel’s words</p>
+          ))}
+        {names.length > 0 && (
           <p className="muted source">
-            {names.length
-              ? `${names.map((n) => `“${n}”`).join(", ")} ${names.length === 1 ? "isn’t" : "aren’t"} in your answers.`
-              : "Inkreel couldn’t trace this line to your answers."}
+            {names.map((n) => `“${n}”`).join(", ")} {names.length === 1 ? "isn’t" : "aren’t"} in your answers.
           </p>
         )}
       </div>

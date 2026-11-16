@@ -214,6 +214,7 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Prompt reworked** v3 → v6 on Lite, tested each time on the owner's answers and six others (short, realistic, none in the prompt): see "Prompt history" in `decisions.md`. A code check catches "It felt …" lines and asks once more.
 - **Models:** both Flash models ran out of their free daily quota (about 20 each) during the comparisons, and Gemma 4 31B was overloaded, so today's tests are on Lite. Flash first is ready behind one switch for the owner's test on 17 Nov; tested that Lite steps in when Flash is out of quota.
 - **Wording from the owner's review:** "A few thoughts for your caption", "Write about one or more. A few words is enough. …", "Highlighted words are yours." under the lines.
+- **Owner's second test (v6):** a list, one line per answer; then, on a second look, three of the four lines good and only "by the beautiful lake in Hyde Park" bad. v7 (hints, whole caption) was worse on Lite and was dropped; v8 adds one rule to v6 (no line for a place on its own) and ties the place into the thread. Lines without the person's words now say "In Inkreel's words" instead of a warning. A check for lines made only of the feeling answer was tried and dropped: it caught good lines ("tired but laughing the whole way").
 - **Collected for later (owner):** when the post uses every uploaded photo, skip the AI matching and go straight to the post (proposal pending).
 
 ## Where things stand (16 Nov 2026)

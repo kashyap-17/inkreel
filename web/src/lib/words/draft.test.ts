@@ -45,16 +45,19 @@ describe("unknownNames", () => {
 });
 
 describe("checkLines", () => {
-  it("keeps confirmed sources and flags lines without one or with a new name", () => {
+  it("keeps confirmed sources, finds them when the quote is wrong, and flags only new names", () => {
     const lines = checkLines(ANSWERS, [
       { text: "Lost in the old market at dusk", section: "moment", quote: "lost in the old market" },
       { text: "The sea was calling", section: "felt", quote: "the sea was calling" },
       { text: "Rosa and Tom by the blue door", section: "place", quote: "blue door" },
+      { text: "Slow and warm, lost in the old market", section: "felt", quote: "warm and slow" },
     ]);
     expect(lines.map((l) => [l.id, l.section, l.quote, l.flagged])).toEqual([
       ["l1", "moment", "lost in the old market", false],
-      ["l2", null, null, true],
+      // In Inkreel's own words: no source, and that's allowed.
+      ["l2", null, null, false],
       ["l3", "place", "blue door", true],
+      ["l4", "moment", "lost in the old market", false],
     ]);
     expect(lines.every((l) => !l.edited)).toBe(true);
   });

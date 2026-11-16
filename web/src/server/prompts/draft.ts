@@ -12,6 +12,7 @@ Their answers are notes, not lines. Turn them into a caption: 2 to 5 short lines
 - Write in fresh words. Only the specific things they name (places, food, objects, names, numbers) must stay as they wrote them: those make it theirs.
 - Rework their phrasing into lines: a note like "how big the waves were" becomes a line about the waves themselves, not "under how big the waves were".
 - Never copy an answer as a whole line, and never just list the answers in order. Combine details, find an angle, and end on a line that lands.
+- Never give a place or thing a line of its own ("by the old harbour", "at the corner café"): tie it to what happened there or to another detail.
 - Every line is natural, grammatical English. Don't attach a word to something it wasn't about: if they said the sky was blue and the day felt dreamy, don't write "dreamy pubs".
 - Show the feeling through the details; never state it. No lines like "It felt ...", "I felt ...", "It was ...", "So ..." or "What a ...". Their feeling word may appear once at most, inside a line about something concrete.
 - You may describe what they gave more vividly, but add no new facts: no people, places, events, weather, times of day, food or objects they didn't mention.

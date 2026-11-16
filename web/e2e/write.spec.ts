@@ -79,9 +79,10 @@ test("from answers to a draft traced to them, then on to a post by hand", async 
   await expect(lines.nth(0).locator("mark.mine")).toHaveText(["Lost in the old market at dusk"]);
   await expect(page.getByText("words are yours.")).toBeVisible();
   await expect(lines.nth(0).getByText("Check this line")).toHaveCount(0);
-  // A quote that isn't in the answers is dropped, and the line flagged.
-  await expect(lines.nth(1)).toContainText("Check this line");
-  await expect(lines.nth(1)).toContainText("Inkreel couldn’t trace this line to your answers.");
+  // A quote that isn't in the answers is dropped.
+  // A line in Inkreel's own words says so.
+  await expect(lines.nth(1)).toContainText("In Inkreel’s words");
+  await expect(lines.nth(1)).not.toContainText("Check this line");
   await expect(lines.nth(1)).not.toContainText("From your answer");
   // A name the person never gave is flagged.
   await expect(lines.nth(2)).toContainText("“Maria” isn’t in your answers.");

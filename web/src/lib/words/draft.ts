@@ -23,7 +23,7 @@ export interface DraftLine {
   section: SectionKey | null;
   /** The person's exact words the line draws on, as they wrote them; null when not confirmed. */
   quote: string | null;
-  /** No confirmed source, or a name the answers don't have: "check this line". */
+  /** Names someone or something the answers don't have: "check this line". */
   flagged: boolean;
   /** Changed by the person. */
   edited: boolean;
@@ -93,6 +93,19 @@ export function statesFeeling(line: string): boolean {
   return /\b(it|everything|all|this|that)\s+(all\s+)?(felt|feels)\b|\bi\s+felt\b|^\s*what an?\b/i.test(line);
 }
 
+/** The longest run of the person's own words in a line, as they wrote it, and which answer it's from. */
+export function traceLine(line: string, answers: Answers): { section: SectionKey; quote: string } | null {
+  const runs = ownWords(line, answers)
+    .filter((p) => p.mine)
+    .map((p) => p.text)
+    .sort((a, b) => b.length - a.length);
+  for (const run of runs) {
+    const found = findQuote(answers, run, "");
+    if (found) return found;
+  }
+  return null;
+}
+
 /** Turns the model's lines into draft lines: quotes checked against the answers, doubtful lines flagged. */
 export function checkLines(answers: Answers, drafted: DraftedLine[]): DraftLine[] {
   const seen = new Set<string>();
@@ -101,13 +114,15 @@ export function checkLines(answers: Answers, drafted: DraftedLine[]): DraftLine[
     const text = line.text.replace(/\s+/g, " ").trim();
     if (!text || seen.has(plain(text))) continue;
     seen.add(plain(text));
-    const found = findQuote(answers, line.quote, line.section);
+    // The model's own quote when it gave one that checks out; otherwise the line's longest run of
+    // the person's words. A line in Inkreel's own words has no source, and that's allowed.
+    const found = (line.quote && findQuote(answers, line.quote, line.section)) || traceLine(text, answers);
     lines.push({
       id: `l${lines.length + 1}`,
       text,
-      section: found?.section ?? null,
-      quote: found?.quote ?? null,
-      flagged: !found || unknownNames(text, answers).length > 0,
+      section: found ? found.section : null,
+      quote: found ? found.quote : null,
+      flagged: unknownNames(text, answers).length > 0,
       edited: false,
     });
   }
