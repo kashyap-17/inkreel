@@ -46,6 +46,7 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 - `docs/plan.md`: the build plan: flow, architecture, what the system may do, model calls, milestones. Follow it; update it when the plan changes.
 - `docs/market.md`: competitors and how Inkreel is different. Recheck before positioning or launch decisions.
 - `docs/devlog.md`: development log of meaningful AI use.
+- `docs/testing.md`: how Inkreel is tested and how to repeat it.
 
 ## Working conventions
 - Keep a development log of meaningful AI use (prompts, decisions, what changed).
@@ -57,11 +58,12 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 - Next.js 16 may differ from what you know: before using an unfamiliar Next.js API or convention, check the docs bundled in `node_modules/next/dist/docs/` and heed deprecation notices. (Next's dev server writes the same rule to `web/AGENTS.md`, which is git-ignored.)
 - Deploys: Vercel builds every push to `main` from the `web` root directory (live at `inkreel-eight.vercel.app`). Check a deploy's result with `gh api repos/kashyap-17/inkreel/commits/<sha>/status`.
 - Tester mode: open the app once with `?tester=1` (off with `?tester=0`) to see engineering details and send test records to the server log. Read the log from `web/` with `npx vercel@65.15.0 logs` within about 30 minutes of a test (Vercel's free plan keeps no more).
-- `npm run dev` · `npm run dev:phone` (reachable from a phone on the same Wi-Fi at the Mac's IP, port 3000) · `npm run check` (typecheck, lint, tests; run before saying work is done) · `npm run build`.
+- `npm run dev` · `npm run dev:phone` (reachable from a phone on the same Wi-Fi at the Mac's IP, port 3000) · `npm run check` (typecheck, lint, tests; run before saying work is done) · `npm run test:browser` (the whole flow in real Chrome; run after any change to a screen or the flow; see `docs/testing.md`) · `npm run build`.
 
 ## Folder structure
 - `docs/`: plan, decisions, market notes, devlog (see "Where things go").
 - `web/`: the app. Config files (`package.json`, `tsconfig.json`, `next.config.ts`, `eslint.config.mjs`, `vitest.config.mts`, `.npmrc`, `.nvmrc`) sit here because the tools look for them next to `package.json`.
+- `web/e2e/`: browser tests (Playwright) and the sample photos they draw.
 - `web/src/app/`: the page, and `api/` routes for the model calls (`embed`, `queries`, `check`, `invite`) and the server log (`report` for photo errors, `record` for test records in tester mode).
 - `web/src/components/`: screens (`Flow` holds the steps and saves the draft: start, words, photos, consent, matching, review, preview) and UI pieces.
 - `web/src/lib/flow/`: the flow as a typed reducer (steps, writing, photos, matches, review edits, undo), with tests.

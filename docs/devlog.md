@@ -144,6 +144,13 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Built:** blurry, nearly black, washed-out and screenshot photos are set aside when photos are added, before stacking and matching; the photos screen lists them with the reason and a tap brings one back. Nothing is set aside when 10 photos or fewer are added. Rules and values in `decisions.md`.
 - **Checked:** 90 tests; in Chrome with 14 files (a blurred copy, a black frame and a screenshot among good photos): the three were set aside with the right reasons, and bringing one back worked. Not yet tried on real weak photos, so the cut-offs are untested on a real album.
 
+## 16 Nov 2026: browser tests saved in the repo
+
+- **Owner's question:** are the browser run-throughs saved, so testing can be repeated once things settle? They weren't: throwaway scripts and sample photos in a temporary folder, wiped once already.
+- **Built:** `npm run test:browser` (Playwright with the installed Chrome, tests in `web/e2e/`), sample photos drawn by the test so no real photos are stored, a by-hand run that sends nothing to Gemini, an optional live run (`E2E_LIVE=1`), and `docs/testing.md`.
+- **Caught on its first run:** "Add a photo" on the matches screen opened an empty list when the part's photo was taken within 15 minutes of the others (those photos were filed under "Around then", which isn't shown when adding). Fixed; this was live for a short while in the previous deploy.
+- **Checked:** 5 browser tests and the live one pass; 90 unit tests.
+
 ## Where things stand (16 Nov 2026)
 
 **Done:** the core loop for "I have writing", end to end and deployed: words with a live photo estimate → photos (working copies, stacks) → consent → matching with reasons → review (swap, move a line, caption only, fewer/more, undo) → preview (change a photo, share, copy). The draft is saved on the device. Tested once on the owner's phone with a real trip.

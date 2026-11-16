@@ -42,7 +42,8 @@ export function SwapSheet({
 
   const suggested = match?.byHand ? [] : take(card.alternatives);
   const sameShot = replacing ? take(stack?.photoIds ?? []) : [];
-  const around = current
+  // Only offered when changing a photo; when adding one, every other photo is listed below.
+  const around = replacing && current
     ? take(
         state.photos
           .filter((p) => Math.abs(p.takenAt - current.takenAt) <= AROUND_MINUTES * 60_000)
@@ -117,8 +118,7 @@ export function SwapSheet({
         </section>
       )}
       {grid("Other shots of this", sameShot)}
-      {replacing &&
-        grid("Around then", around, current ? `Within ${AROUND_MINUTES} minutes of ${formatTime(current)}` : undefined)}
+      {grid("Around then", around, current ? `Within ${AROUND_MINUTES} minutes of ${formatTime(current)}` : undefined)}
       {grid(match?.byHand ? "All your photos" : "Elsewhere in your photos", elsewhere)}
     </dialog>
   );
