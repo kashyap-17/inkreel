@@ -8,7 +8,7 @@ The user starts with their thoughts, feelings and words, and adds photos after. 
 
 The first screen asks how the user wants to tell the trip:
 - **I have writing** (fully yours): paste or type; used exactly as written.
-- **Help me write** (AI writes from your input): a few light questions about the whole trip, answered before any photos are added (a word for how it felt, the highlight, who you were with, a moment you didn't photograph). The AI writes from the answers only.
+- **Help me write** (AI writes from your input): four light prompts answered before any photos are added; the AI writes from the answers only. Shown on the start screen as "Write with Inkreel". Design in "Write with Inkreel" below (16 Nov), which replaces the earlier question list.
 - **Mix** (hybrid): the user's writing stays; the AI suggests extra lines (whole new lines, never edits to the user's lines), each accepted or rejected. MVP version: a list of suggested lines with accept/reject, not inline tracked changes.
 
 All three modes end in the same thing: one write-up, with each part marked as the user's or the AI's. Everything after that is identical for every mode: photos → matches → preview and share. The AI never sees the photos while writing.
@@ -16,6 +16,36 @@ All three modes end in the same thing: one write-up, with each part marked as th
 - **Not chosen:** per-moment questions shown next to photos. That makes the flow photo-first, like existing AI travel journals.
 - **Build order:** fully yours first, then help me write, then mix. Help me write is how people without writing get in; mix has the most UI and the fiddliest rules, so it goes last. The first screen shows all three from the start, unbuilt ones marked "coming soon".
 - **Provenance:** AI text always looks different from the user's words, with a toggle in the preview to keep or hide the marking in the final post.
+
+## Write with Inkreel: one writing surface, drafts traced to the user's words (16 Nov 2026)
+
+Designed with the owner from the review's papers and further reading (records in Zotero, tag `inkreel-litreview`). Not built yet.
+
+**What the research says** (the parts the design rests on):
+- Ownership follows contribution and felt control: writing it yourself gave clear ownership; getting, choosing or editing AI text all left it feeling mostly the AI's, about equally; editing shifted control back most. Personalising the AI on the person's own writing didn't change ownership. Most people still signed AI text as their own (Draxler et al. 2024).
+- More AI scaffolding costs more ownership: paragraph suggestions lowered it more than sentence ones (Dhillon et al. 2024). Suggestions on request, small units, and anchoring to the writer's own voice help (Zhang, Bu and Dhillon 2026, preprint).
+- Writers don't want to hand over the ideas (Biermann et al. 2022; read through the university's summary only). Authenticity rests on where the content comes from and on lived experience (Hwang et al. 2025; partly read).
+- AI suggestions shift what people write, mostly unnoticed (Jakesch et al. 2023), so the AI adds no content the person didn't give.
+- "What happened" is the strongest memory cue, then "where", then "who"; "when" is weakest; several cues beat one (Wagenaar 1986; Burt 1992). AI-generated open questions helped recall in a small study, but one was insensitive (Jeung et al. 2024), so fixed prompts come first.
+
+**Input: one writing surface with four labelled sections** (not placeholder text, not separate boxes, not tappable prompts above a box):
+1. A moment you keep thinking about
+2. A place or thing that stands out
+3. How it felt
+4. Anything else
+- Headings are labels that stay visible; each section grows as you type; empty ones are skipped. Chosen over prompts above one box (the owner: only one prompt gets used per attempt) and over separate boxes (reads as a form).
+- **One nudge, once:** on "Next: draft it with Inkreel" with only one section filled: "A second detail makes the lines more yours. Add a place or how it felt?" with "Add one" and "Draft anyway". Never blocks.
+- **Before the draft is sent:** a line by the button says the answers go to Google's Gemini AI to draft the lines; the invite code is asked for there if none is saved (the draft is sent before the photos' consent screen).
+
+**The draft:**
+- A few short lines (about 4–8), from the answers only, keeping the person's own phrases where they fit, no invented people, places or events, no photos as input. Each line comes with the section it draws on and the exact phrase.
+- **Each line shows where it came from,** like a photo match's reason: "From your answer: 'the market at dusk'". The quote is checked in code against the answers and dropped if it isn't there. A line with no confirmed source, or naming a capitalised person or place not in the answers, is flagged "check this line".
+- **The person's exact words inside a line are highlighted** (runs of two or more words found in the answers that include at least one word that isn't a stopword).
+- **Not every line styled as AI:** one light "Written with Inkreel" label on the draft and on matches made of these lines (the mode itself is AI-assisted; the source and highlights say more). The caption stays plain text.
+- **Each line can be edited in place or dropped** (editing first: it moves control back to the person). **"Change my answers"** goes back to the sections with the text kept; **"Draft again"** writes a new draft. Then "Next: add photos", and the rest of the flow is the same as for own writing.
+- **Model:** Lite with backup requests (as for the searches), not Flash as first planned: Flash hung under load on 16 Nov. Quality to be judged in the owner's tests.
+
+**Not now:** suggested lines inserted into the person's own writing (the "mix" half), follow-up questions written by AI, questions based on the photos.
 
 ## Inkreel chunks the writing, not the user (7 Nov 2026)
 
@@ -221,6 +251,7 @@ Asked for by the owner: matching should only choose from photos worth posting. U
 On the owner's phone test matching took almost 10 minutes. The search call failed (Google's "high demand" answer, 503, on both Flash and Lite), the browser retried it with long waits, and the phone paused the page when its screen went off. Direct calls the same evening: Flash failed or hung for 60 s; about 4 in 10 Lite requests got "high demand" within 2 s, whatever the settings, and the rest answered in 1–2 s.
 
 - **Lite writes the searches, with backup requests** (updated 16 Nov evening): the same request is sent again if there's no answer after 4 s and 8 s, or at once after a "busy" answer; the first good answer wins; after 20 s the sentences alone are searched. Flash is no longer tried here (it hung as well). On a later test a single Lite request hung for 12 s and Flash for 20 s, so retrying only on "busy" wasn't enough. The browser sends the search request once, and once more only if the connection dropped.
+- **Checking is part of matching** (16 Nov evening): the check that confirms each photo and writes its reason runs as the last stage of the progress bar ("Checking each match · 1 of 3"), with the same backup requests (resent at 8 s and 16 s, 30 s limit; reason calls hung 36–40 s in the owner's test). The matches screen opens with the reasons shown and any rejected photo already replaced; after 15 s it opens anyway and late reasons appear when they arrive, with no placeholder text. A check already on its way is never asked for twice.
 - **The sentence itself is always one of the searches,** with the AI's readings added; the best match counts. On the owner's test, a run that fell back to the plain sentences gave good matches, while Lite's readings alone gave worse ones ("bright moon in the sky" for "trippy lights"). The readings can now only add matches. Readings on Lite are looser; check them in the owner's next tests.
 - **"Busy" is retried on the server** after 1 s and 2 s (three attempts per call), not by the browser with long waits.
 - **Nothing can hang:** every browser request stops after 65 s; every model call has a time limit (searches 12 s on Lite, check 40 s); the browser makes one search request and waits at most 20 s before any retry.

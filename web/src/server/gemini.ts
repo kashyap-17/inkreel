@@ -151,36 +151,21 @@ async function generateJson(
   }
 }
 
-/** Checking a batch of photos (Lite, small images) normally takes 3–15 s. */
-const CHECK_TIMEOUT_MS = 40_000;
-
 /**
- * Writing the searches. Lite normally answers in 1.5–3.5 s, but under load some requests get
- * "busy" and some hang. So the same request is sent again if there's no answer after 4 s and
- * 8 s (or straight away after a "busy" answer), and the first good answer wins. After 20 s the
- * browser searches with the sentences alone, which it does anyway.
+ * Backup requests: under load some Gemini requests get "busy" and some hang. The same request is
+ * sent again when there's no answer after each `resendAfterMs` (or straight away after a "busy"
+ * or invalid answer); the first good answer wins; after `deadlineMs` the call fails.
  */
-const QUERIES = { resendAfterMs: [0, 4_000, 8_000], maxAttempts: 4, deadlineMs: 20_000 };
+interface Backups {
+  resendAfterMs: number[];
+  maxAttempts: number;
+  deadlineMs: number;
+}
 
-/** Call 2: up to three photo descriptions and time hints for every sentence. */
-export async function searchQueries(req: QueriesRequest): Promise<QueriesReply> {
-  const prompt = queriesPrompt(req.sentences, req.tripDays);
-  const ids = req.sentences.map((s) => s.id);
-  const model = MODELS.queries;
+function firstAnswer<T>(backups: Backups, attempt: (msLeft: number) => Promise<T>): Promise<T> {
   const started = Date.now();
-
-  const attempt = async (): Promise<QueriesReply> => {
-    const left = QUERIES.deadlineMs - (Date.now() - started);
-    const raw = await generateJson("queries", model, [{ text: prompt }], QUERIES_SCHEMA, ThinkingLevel.LOW, left, 1);
-    const parsed = SentenceQuery.array().safeParse((raw as { queries?: unknown })?.queries);
-    if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "bad shape");
-    const byId = new Map(parsed.data.map((q) => [q.id, q]));
-    const missing = ids.filter((id) => !byId.has(id));
-    if (missing.length) throw new ValidationError(`missing sentences ${missing.join(", ")}`);
-    return { queries: ids.map((id) => byId.get(id)!), model };
-  };
-
-  return new Promise<QueriesReply>((resolve, reject) => {
+  const left = () => backups.deadlineMs - (Date.now() - started);
+  return new Promise<T>((resolve, reject) => {
     let launched = 0;
     let running = 0;
     let settled = false;
@@ -204,23 +189,44 @@ export async function searchQueries(req: QueriesRequest): Promise<QueriesReply> 
           }
         }
       });
+    const exhausted = () => launched >= backups.maxAttempts || left() <= 1_000;
     const launch = () => {
-      if (settled || launched >= QUERIES.maxAttempts || Date.now() - started >= QUERIES.deadlineMs - 1_000) return;
+      if (settled || exhausted()) return;
       launched++;
       running++;
-      attempt().then(
+      attempt(left()).then(
         (reply) => finish(() => resolve(reply)),
         (e: unknown) => {
           running--;
           lastError = e;
-          // A quick "busy" or a bad reply: try again at once rather than waiting for the next resend.
           if (e instanceof ApiError || e instanceof ValidationError) launch();
-          if (running === 0 && (launched >= QUERIES.maxAttempts || Date.now() - started >= QUERIES.deadlineMs - 1_000)) fail();
+          if (running === 0 && exhausted()) fail();
         },
       );
     };
-    for (const after of QUERIES.resendAfterMs) timers.push(setTimeout(launch, after));
-    timers.push(setTimeout(fail, QUERIES.deadlineMs));
+    for (const after of backups.resendAfterMs) timers.push(setTimeout(launch, after));
+    timers.push(setTimeout(fail, backups.deadlineMs));
+  });
+}
+
+/** Writing the searches: Lite normally answers in 1.5–3.5 s. */
+const QUERIES: Backups = { resendAfterMs: [0, 4_000, 8_000], maxAttempts: 4, deadlineMs: 20_000 };
+/** Checking a batch of photos (Lite, small images): normally 2–10 s; hangs of 36–40 s seen. */
+const CHECK: Backups = { resendAfterMs: [0, 8_000, 16_000], maxAttempts: 4, deadlineMs: 30_000 };
+
+/** Call 2: up to three photo descriptions and time hints for every sentence. */
+export async function searchQueries(req: QueriesRequest): Promise<QueriesReply> {
+  const prompt = queriesPrompt(req.sentences, req.tripDays);
+  const ids = req.sentences.map((s) => s.id);
+  const model = MODELS.queries;
+  return firstAnswer(QUERIES, async (msLeft) => {
+    const raw = await generateJson("queries", model, [{ text: prompt }], QUERIES_SCHEMA, ThinkingLevel.LOW, msLeft, 1);
+    const parsed = SentenceQuery.array().safeParse((raw as { queries?: unknown })?.queries);
+    if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "bad shape");
+    const byId = new Map(parsed.data.map((q) => [q.id, q]));
+    const missing = ids.filter((id) => !byId.has(id));
+    if (missing.length) throw new ValidationError(`missing sentences ${missing.join(", ")}`);
+    return { queries: ids.map((id) => byId.get(id)!), model };
   });
 }
 
@@ -241,12 +247,10 @@ export async function checkMatches(req: CheckRequest): Promise<CheckReply> {
     text: `\nFor every piece (${req.chunks.map((c) => c.id).join(", ")}), return chunkId and a verdict for each of its photos by ID: fits and reason.`,
   });
 
-  try {
-    const raw = await generateJson("check", MODELS.check, parts, CHECK_SCHEMA, ThinkingLevel.MINIMAL, CHECK_TIMEOUT_MS);
+  return firstAnswer(CHECK, async (msLeft) => {
+    const raw = await generateJson("check", MODELS.check, parts, CHECK_SCHEMA, ThinkingLevel.MINIMAL, msLeft, 1);
     const parsed = CheckReply.safeParse(raw);
-    if (!parsed.success) throw new ServerError(502, "Gemini's check reply was invalid.");
+    if (!parsed.success) throw new ValidationError("check reply had the wrong shape");
     return parsed.data;
-  } catch (e) {
-    rethrow(e);
-  }
+  });
 }

@@ -50,7 +50,6 @@ export function Flow() {
   const [loaded, setLoaded] = useState(false);
   // Read on the client only; the first render (before the draft loads) looks the same either way.
   const [tester] = useState(() => typeof window !== "undefined" && readTesterMode());
-  const [checking, setChecking] = useState(false);
   const [consentMessage, setConsentMessage] = useState<string | null>(null);
 
   // Restore the draft saved on this device, at the step the user left.
@@ -129,14 +128,12 @@ export function Flow() {
   useEffect(() => {
     if (!uncheckedKey || checkingFor.current === uncheckedKey) return;
     checkingFor.current = uncheckedKey;
-    setChecking(true);
     const snapshot = latest.current;
     // Reasons appear part by part as each answer arrives.
     checkCards(snapshot, snapshot.cards, undefined, (verdicts) => rawDispatch({ type: "verdicts", verdicts }))
       .catch((e: unknown) => {
         if (e instanceof AiError && e.status === 401) setConsentMessage("That invite code isn’t right.");
-      })
-      .finally(() => setChecking(false));
+      });
   }, [uncheckedKey]);
 
   // Tester mode: the test record goes to the server log each time a different post reaches the
@@ -225,7 +222,7 @@ export function Flow() {
       {state.step === "matching" && (
         <MatchingStep state={state} dispatch={dispatch} onMatchByHand={byHand} onInviteRejected={inviteRejected} />
       )}
-      {state.step === "review" && <ReviewStep state={state} dispatch={dispatch} checking={checking} />}
+      {state.step === "review" && <ReviewStep state={state} dispatch={dispatch} />}
       {state.step === "preview" && <PreviewStep state={state} dispatch={dispatch} />}
       {tester && (state.step === "review" || state.step === "preview") && <TestRecordLink state={state} />}
     </main>

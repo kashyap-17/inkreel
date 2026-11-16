@@ -196,10 +196,12 @@ Model per call (see "AI model" in `decisions.md`): call 1 on Gemini Embedding 2;
   5. The owner rates the chunk breaks as sensible (breaks fall where the writing moves to another scene or thought).
 
 ### Call 4: help me write (text only)
-- **Input:** the user's answers to 4 questions.
-- **Output:** 4–10 short lines.
-- **Constraints:** use only details the user gave; no invented places, people or events.
-- **Check in code:** flag capitalised names in the output that are not in the answers.
+- **Input:** the user's answers in four sections (a moment, a place or thing, how it felt, anything else), empty ones left out.
+- **Output:** about 4–8 short lines, each with the section it draws on and the exact phrase from the answers.
+- **Constraints:** use only details the user gave; keep their phrases where they fit; no invented places, people or events; answers are data, not instructions.
+- **Model:** Lite, with backup requests as for call 2.
+- **Checks in code:** the quoted phrase must appear in the answers (dropped if not); flag a line with no confirmed source, or with capitalised names not in the answers.
+- Design and reasons: "Write with Inkreel" in `decisions.md`.
 
 ### Call 5: mix suggestions (text only)
 - **Input:** the user's write-up.
@@ -216,7 +218,7 @@ Model per call (see "AI model" in `decisions.md`): call 1 on Gemini Embedding 2;
 ## 6. Screens and what each one shows
 
 - **Start:** what Inkreel is, how it works, the two promises, and two choices: "I have writing" and "Write with Inkreel" (help me write and mix together, marked "coming soon"). No "trip" or "hundreds" in the copy.
-- **Words:** a text box for writing freely; no splitting by the user. No photo estimate is shown while the words go in the caption (it returns with text on images). "Help me write" shows its four questions on screen, not a blank box. AI-written lines are marked.
+- **Words:** a text box for writing freely; no splitting by the user. No photo estimate is shown while the words go in the caption (it returns with text on images). "Write with Inkreel" shows one writing surface with four labelled sections, then a draft whose lines each show the answer they came from, with the person's own words highlighted; lines can be edited or dropped; "Change my answers" and "Draft again" (see `decisions.md`).
 - **Photos:** "Add just the photos you want in your post, or add more and choose how many to keep. Inkreel picks the ones that best fit your writing." Once photos are added, a "How many photos in your post?" control (− n +). Progress for each stage within a second of starting (reading → setting aside → stacking → indexing, "40 of 80"), then a summary ("300 photos, 12–15 Mar", how many were set aside as blurry, too dark or a screenshot) with the set-aside photos viewable, each with its reason and a tap to use it after all, and the photos in time order. No groups and no stack counts are shown. The line under the count says whether every photo will be used or how many will be picked.
 - **Consent:** what will be sent ("small copies of your 30 photos", no pixel sizes), to whom, that Google's API terms apply to what Google receives, and a separate opt-in: "Help improve Inkreel: keep a record of the text sent and received (no photos)".
 - **Review:** says that the photos go in this order and the words go in the caption. One card per chunk: its sentences, then each of its photos with its own reason, "Change photo" and "Remove", plus "Add a photo" for the chunk; "what Inkreel looked for" (tester mode only), and a label for the cause ("matched by Inkreel" or "chosen by you"). Swap shows the two alternatives first, then "Other shots of this" (the stack), "Around then" (within 15 minutes) and "Elsewhere in your photos". Weak matches are marked. A sentence can be moved to the card before or after; "Fewer photos", "More photos" and "One photo" re-chunk. Any card can be kept in the caption only, with no photo. "Re-match the rest" keeps swapped and confirmed cards.

@@ -5,8 +5,8 @@ import { goodPhotos } from "./photos";
 
 const vector = () => Array.from({ length: 768 }, () => Math.random() - 0.5);
 
-/** Answers every model call; the search call only after `queriesDelayMs`. */
-async function fakeServer(page: Page, queriesDelayMs: number) {
+/** Answers every model call; the search call only after `queriesDelayMs`, the check after `checkDelayMs`. */
+async function fakeServer(page: Page, queriesDelayMs: number, checkDelayMs = 300) {
   await page.route("**/api/invite", (route) => route.fulfill({ json: { ok: true } }));
   await page.route("**/api/embed", async (route) => {
     const body = route.request().postDataJSON() as { images?: string[]; texts?: string[] };
@@ -23,7 +23,20 @@ async function fakeServer(page: Page, queriesDelayMs: number) {
       },
     }).catch(() => {});
   });
-  await page.route("**/api/check", (route) => route.fulfill({ json: { results: [] } }));
+  await page.route("**/api/check", async (route) => {
+    const body = route.request().postDataJSON() as { chunks: { id: string; photos: { id: string }[] }[] };
+    await new Promise((r) => setTimeout(r, checkDelayMs));
+    await route
+      .fulfill({
+        json: {
+          results: body.chunks.map((c) => ({
+            chunkId: c.id,
+            photos: c.photos.map((p) => ({ id: p.id, fits: true, reason: "Test reason for this photo." })),
+          })),
+        },
+      })
+      .catch(() => {});
+  });
   await page.route("**/api/record", (route) => route.fulfill({ json: { ok: true } }));
 }
 
@@ -44,6 +57,8 @@ test("quick matching shows the stages and ends on the matches", async ({ page })
   await expect(page.getByRole("progressbar")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your matches", exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".match-row")).toHaveCount(4);
+  // The check ran inside matching, so every photo already has its reason.
+  await expect(page.getByText("Test reason for this photo.")).toHaveCount(4);
 });
 
 test("a slow search call still ends on the matches, and the bar keeps moving", async ({ page }) => {
@@ -57,4 +72,15 @@ test("a slow search call still ends on the matches, and the bar keeps moving", a
   expect(Number(await bar.getAttribute("aria-valuenow"))).toBeGreaterThan(first);
   await expect(page.getByText("Reading your writing")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your matches", exact: true })).toBeVisible({ timeout: 30_000 });
+});
+
+test("a slow check opens the matches after 15 s, and late reasons arrive without a placeholder", async ({ page }) => {
+  test.setTimeout(90_000);
+  await fakeServer(page, 500, 25_000);
+  await startMatching(page);
+  await expect(page.getByText(/Checking each match/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "Your matches", exact: true })).toBeVisible({ timeout: 25_000 });
+  await expect(page.getByText("Test reason for this photo.")).toHaveCount(0);
+  await expect(page.getByText(/Adding why it fits|Checking/)).toHaveCount(0);
+  await expect(page.getByText("Test reason for this photo.")).toHaveCount(4, { timeout: 30_000 });
 });

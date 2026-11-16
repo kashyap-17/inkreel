@@ -48,6 +48,9 @@ const QUERIES_KEY = "queries-v3";
 /** The check call takes up to three photos per piece of writing. */
 const PHOTOS_PER_CHECK = 3;
 
+/** Checks already on their way, so a second caller doesn't ask for the same reasons again. */
+const checking = new Set<string>();
+
 async function pool<T>(items: T[], concurrency: number, work: (item: T) => Promise<void>) {
   let next = 0;
   const worker = async () => {
@@ -249,11 +252,15 @@ export async function checkCards(
   const match = state.match;
   if (!match || match.byHand) return {};
   // One item per group of up to three photos of a part: its own photos first, then the alternatives.
+  const known = (card: Card, id: string) => {
+    const key = verdictKey(card.sentenceIds, id);
+    return key in match.verdicts || checking.has(key);
+  };
   const todo = cards.flatMap((card) => {
     if (card.captionOnly) return [];
-    const own = cardPhotoIds(card).filter((id) => !(verdictKey(card.sentenceIds, id) in match.verdicts));
+    const own = cardPhotoIds(card).filter((id) => !known(card, id));
     if (own.length === 0) return [];
-    const ids = [...own, ...card.alternatives.filter((id) => !(verdictKey(card.sentenceIds, id) in match.verdicts))];
+    const ids = [...own, ...card.alternatives.filter((id) => !known(card, id))];
     const groups = chunked(ids, PHOTOS_PER_CHECK).slice(0, Math.ceil(own.length / PHOTOS_PER_CHECK));
     return groups.map((photoIds, i) => ({ id: `${card.id}-${i + 1}`, card, photoIds }));
   });
@@ -262,6 +269,8 @@ export async function checkCards(
   onStage?.({ kind: "check", done, total: todo.length });
 
   // Two requests at a time, so a busy answer on one doesn't hold up the rest.
+  const keys = todo.flatMap(({ card, photoIds }) => photoIds.map((id) => verdictKey(card.sentenceIds, id)));
+  keys.forEach((k) => checking.add(k));
   await pool(chunked(todo, CHUNKS_PER_CHECK_REQUEST), 2, async (batch) => {
     const found: Record<string, Verdict> = {};
     try {
@@ -294,6 +303,7 @@ export async function checkCards(
       if (e instanceof AiError && e.status === 401) throw e;
       // Leave these photos unchecked.
     }
+    for (const { card, photoIds } of batch) photoIds.forEach((id) => checking.delete(verdictKey(card.sentenceIds, id)));
     Object.assign(verdicts, found);
     if (Object.keys(found).length) onVerdicts?.(found);
     done += batch.length;

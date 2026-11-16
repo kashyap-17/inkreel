@@ -21,11 +21,9 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 export function ReviewStep({
   state,
   dispatch,
-  checking,
 }: {
   state: FlowState;
   dispatch: (a: FlowAction) => void;
-  checking: boolean;
 }) {
   // Which part's photo is being chosen: `replacing` is the photo to change, or null to add one more.
   const [swapping, setSwapping] = useState<{ cardId: string; replacing: string | null } | null>(null);
@@ -93,7 +91,6 @@ export function ReviewStep({
             card={card}
             index={i}
             last={i === state.cards.length - 1}
-            checking={checking}
             tester={tester}
             dispatch={dispatch}
             numberOf={(photoId) => slides.findIndex((x) => x.cardId === card.id && x.photoId === photoId) + 1}
@@ -135,7 +132,6 @@ function MatchCard({
   card,
   index,
   last,
-  checking,
   tester,
   dispatch,
   numberOf,
@@ -145,7 +141,6 @@ function MatchCard({
   card: Card;
   index: number;
   last: boolean;
-  checking: boolean;
   tester: boolean;
   dispatch: (a: FlowAction) => void;
   /** The slide number of one of this part's photos. */
@@ -196,11 +191,7 @@ function MatchCard({
                   {status === "swapped" ? "Chosen by you" : "Matched by Inkreel"}
                 </span>
                 {weak && <span className="label weak">No strong match</span>}
-                {verdict ? (
-                  <p>{verdict.reason}</p>
-                ) : status === "suggested" && checking ? (
-                  <p className="muted">Adding why it fits…</p>
-                ) : null}
+                {verdict && <p>{verdict.reason}</p>}
                 <div className="row card-actions">
                   <button type="button" className="secondary small-button" onClick={() => onChoose(photoId)}>
                     Change photo

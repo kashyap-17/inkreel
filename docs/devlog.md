@@ -179,9 +179,22 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Server log:** a Lite request hung for 12 s, then Flash for 20 s; only quick "busy" answers were being retried.
 - **Changed:** backup requests for the search call (resent at 4 s and 8 s or at once after "busy", first answer wins, 20 s limit, no Flash); the sentence itself is always searched alongside the AI's readings; one progress bar with the current step and time left. Five timed calls afterwards: all answered, 1.8–3.5 s, one after a "busy" answer and an immediate resend.
 
+## 16 Nov 2026: Write with Inkreel designed; reasons still slow
+
+- **Research for the writing mode:** read the review's papers on co-writing and ownership (Draxler 2024, Jakesch 2023; Biermann 2022 via the university's summary) and new ones (Dhillon 2024, Zhang et al. 2026, Hwang et al. 2025, Jeung et al. 2024, Jakesch 2019, Burt 1992, Wagenaar 1986). The new ones were imported into the owner's Zotero from doi.org and arXiv records, tagged `inkreel-litreview`.
+- **Design agreed with the owner** (in `decisions.md`, "Write with Inkreel"): one writing surface with four labelled sections; one nudge if only one is filled; "Next: draft it with Inkreel"; each drafted line shows the answer it came from with the person's words highlighted, instead of styling every line as AI; edit or drop lines; "Change my answers" and "Draft again". The owner's ideas: the prompts as a guide (first as boxes), linking lines to the answers, editing and redrafting.
+- **Owner's test of the progress bar:** matching was quick (7 s, the search call recovered from two "busy" answers), but two reason calls hung 36–40 s, so "Adding why it fits…" stayed for over a minute. Agreed fix, not built yet: move the reason check into matching as the last stage of the progress bar, with backup requests (first resend at about 6–8 s), capped at about 15 s; the matches screen then opens with reasons and with rejected photos already replaced; late reasons appear without a placeholder.
+
+## 16 Nov 2026: reasons checked inside matching
+
+- **Built:** the check and its reasons run as the last stage of matching, with backup requests shared with the search call (one helper on the server); the matches screen opens complete, or after 15 s with late reasons following; no "Adding why it fits…" placeholder; the progress bar keeps moving between steps (it sat at 70% for 4 s during checking in the first try).
+- **Checked:** 90 unit tests, 8 browser tests (new: reasons present on opening; a 25 s check opens the matches at 15 s and the reasons arrive later with no placeholder), and a live run against Gemini: matching 9.8 s in all, checking 4.2 s of it, every photo with its reason when the screen opened, no fallback.
+
 ## Where things stand (16 Nov 2026)
 
 **Done:** the core loop for "I have writing", end to end and deployed: words with a live photo estimate → photos (working copies, stacks) → consent → matching with reasons → review (swap, move a line, caption only, fewer/more, undo) → preview (change a photo, share, copy). The draft is saved on the device. Tested once on the owner's phone with a real trip.
+
+**Next to build:** Write with Inkreel as designed in `decisions.md` (the reason check inside matching was built on 16 Nov evening). Each commit needs the owner's approval.
 
 **Waiting on the owner:** a second phone test of the 13 and 16 Nov changes (same poem and photos is fine, with `?tester=1` once so the record reaches the log); whether the caption pasted in Instagram after Share; the owner's own picks for the London poem, if a fuller comparison is wanted later.
 
