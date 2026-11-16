@@ -1,6 +1,8 @@
 // The flow from the start screen to the post, in real Chrome. The default tests match by hand,
 // so they send nothing to Gemini and need no key. The last test runs real matching and only
 // runs with E2E_LIVE=1 (needs GEMINI_API_KEY in web/.env; uses a little of the daily quota).
+import { appendFile, mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { goodPhotos, weakPhotos, type SamplePhoto } from "./photos";
 
@@ -28,6 +30,32 @@ test("start screen: two choices, and no mention of trips or hundreds", async ({ 
   await expect(page.getByRole("button", { name: /I have writing/ })).toBeVisible();
   await expect(page.getByText("Write with Inkreel")).toBeVisible();
   await expect(page.getByText("Coming soon")).toHaveCount(1);
+});
+
+test("photos stay readable when the phone withdraws access partway through", async ({ page }, testInfo) => {
+  // Some Android phones stop handing over picked photos a few seconds in (NotReadableError on
+  // every later read). Chrome does the same to a picked file that changes on disk, so: pick 30
+  // photos from disk, change them all once the first one is ready, and expect all 30 to open.
+  const photos = await goodPhotos(page, 30, 200);
+  const dir = testInfo.outputPath("picked");
+  await mkdir(dir, { recursive: true });
+  const paths = await Promise.all(
+    photos.map(async (p) => {
+      const path = join(dir, p.name);
+      await writeFile(path, p.buffer);
+      return path;
+    }),
+  );
+  await page.goto("/?tester=1");
+  await page.getByRole("button", { name: /I have writing/ }).click();
+  await page.locator("textarea").fill(WRITING);
+  await page.getByRole("button", { name: "Next: add photos" }).click();
+  await page.locator("input[type=file]").first().setInputFiles(paths);
+  await expect(page.getByText(/Getting your photos ready… [1-9]\d* of 30/)).toBeVisible();
+  await Promise.all(paths.map((path) => appendFile(path, Buffer.from([0]))));
+  await expect(page.locator(".summary")).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator(".summary")).toContainText("30 photos");
+  await expect(page.getByText(/couldn’t be opened/)).toHaveCount(0);
 });
 
 test("by hand: from writing to a post, with the caption exactly as written", async ({ page }) => {

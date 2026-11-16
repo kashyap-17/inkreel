@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { defaultTarget, targetBounds, type FlowAction, type FlowState } from "@/lib/flow/flow";
-import { isPhoto } from "@/lib/photos/files";
+import { copyFiles, isPhoto, type CopiedFile } from "@/lib/photos/files";
 import { formatDay } from "@/lib/photos/format";
 import { ISSUE_LABEL, photoIssue, setAsideWeak } from "@/lib/photos/quality";
 import { buildStacks, sortByTime } from "@/lib/photos/stacks";
@@ -45,27 +45,57 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
 
     const added: PhotoRecord[] = [];
     const failures: PhotoFailure[] = [];
+    // Timings for the report, to tell whether access ran out after a time, or with the page hidden.
+    const start = performance.now();
+    const since = () => Math.round(performance.now() - start);
+    let copied = 0;
+    let copyMs = 0;
+    let firstFailMs: number | undefined;
+    let hidden = document.hidden;
+    const onVisibility = () => {
+      if (document.hidden) hidden = true;
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    const fail = (failure: PhotoFailure) => {
+      firstFailMs ??= since();
+      failures.push(failure);
+    };
     // What failed goes to the server log (no photos or file names), so it can be fixed without a screenshot.
     const report = (error?: string) =>
       sendPhotoReport({
         picked: images.length,
         added: added.length,
+        copied,
+        copyMs,
+        firstFailMs,
+        hidden,
         error,
         failures: failures.map(({ type, format, sizeMB, reason }) => ({ type, format, sizeMB, reason })),
       });
     try {
       // Loaded on first use: keeps the EXIF reader and canvas code out of the first page load.
-      const { preparePhoto } = await import("@/lib/photos/prepare");
+      // Started now, but the photos are copied first: some phones withdraw access to picked
+      // photos a few seconds in, before decoding would reach the later ones.
+      const loading = import("@/lib/photos/prepare");
+      const copies: (CopiedFile | undefined)[] = await copyFiles(images);
+      copied = copies.filter((c) => c?.copied).length;
+      copyMs = since();
+      const { preparePhoto } = await loading;
       let repeats = 0;
       let done = 0;
       let next = 0;
       const worker = async () => {
-        while (next < images.length) {
-          const file = images[next++]!;
+        while (next < copies.length) {
+          const i = next++;
+          const copy = copies[i]!;
+          copies[i] = undefined; // let the copy go once its photo is prepared
+          const file = copy.file;
           const id = `p${crypto.randomUUID().slice(0, 8)}`;
           const result = await preparePhoto(file, id);
-          if (!result.ok) failures.push(result.failure);
-          else {
+          if (!result.ok) {
+            const { failure } = result;
+            fail(copy.copied ? failure : { ...failure, reason: `copying · ${copy.error} | ${failure.reason}` });
+          } else {
             const prepared = result.photo;
             const key = `${prepared.record.fileName}|${prepared.record.takenAt}`;
             if (seen.has(key)) repeats++;
@@ -76,7 +106,7 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
                 added.push(prepared.record);
               } catch (e) {
                 if (e instanceof Error && e.name === "QuotaExceededError") throw e;
-                failures.push({
+                fail({
                   fileName: file.name,
                   type: file.type || "(none)",
                   format: "unknown",
@@ -90,7 +120,7 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
         }
       };
       // Two at a time: full-size photos are decoded in memory, and phones run out with more.
-      await Promise.all(Array.from({ length: Math.min(2, images.length) }, worker));
+      await Promise.all(Array.from({ length: Math.min(2, copies.length) }, worker));
       // Kept in the session log, so the test record shows why photos were left out.
       if (failures.length) {
         logEvent({ at: new Date().toISOString(), action: "photosFailed", detail: { count: failures.length, failures } });
@@ -116,6 +146,8 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
             : "Something went wrong reading those photos. Try again.",
         detail,
       });
+    } finally {
+      document.removeEventListener("visibilitychange", onVisibility);
     }
   }
 

@@ -28,3 +28,37 @@ export function sniffFormat(head: Uint8Array): ImageFormat {
   }
   return "unknown";
 }
+
+export interface CopiedFile {
+  /** The page's own copy, or the picked file itself if it couldn't be copied. */
+  file: File;
+  copied: boolean;
+  error?: string;
+}
+
+/**
+ * Copies every picked file's bytes into a file the page owns, as soon as they're picked. Some
+ * phones withdraw access to picked photos a few seconds in, before the slower decoding reaches
+ * them; the copies stay readable. Name, type and date are kept (the screenshot check and the
+ * time fallback read them). A file that can't be copied is returned as it was, so it still gets
+ * the usual attempts to open it.
+ */
+export async function copyFiles(files: File[], parallel = 8): Promise<CopiedFile[]> {
+  const out: CopiedFile[] = new Array(files.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < files.length) {
+      const i = next++;
+      const file = files[i]!;
+      try {
+        const bytes = await file.arrayBuffer();
+        out[i] = { file: new File([bytes], file.name, { type: file.type, lastModified: file.lastModified }), copied: true };
+      } catch (e) {
+        const error = (e instanceof Error ? `${e.name}: ${e.message}` : String(e)).slice(0, 300);
+        out[i] = { file, copied: false, error };
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(parallel, files.length) }, worker));
+  return out;
+}

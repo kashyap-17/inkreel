@@ -6,6 +6,13 @@ export const PhotoReport = z.object({
   userAgent: z.string().max(400),
   picked: z.number().int().min(0).max(100_000),
   added: z.number().int().min(0).max(100_000),
+  /** How many picked photos were copied before decoding, and how long that took. */
+  copied: z.number().int().min(0).max(100_000).optional(),
+  copyMs: z.number().int().min(0).max(10_000_000).optional(),
+  /** Milliseconds from the pick to the first photo that failed. */
+  firstFailMs: z.number().int().min(0).max(10_000_000).optional(),
+  /** Whether the page was in the background at any point while photos were read. */
+  hidden: z.boolean().optional(),
   error: z.string().max(500).optional(),
   failures: z
     .array(

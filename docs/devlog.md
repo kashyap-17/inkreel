@@ -190,6 +190,13 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Built:** the check and its reasons run as the last stage of matching, with backup requests shared with the search call (one helper on the server); the matches screen opens complete, or after 15 s with late reasons following; no "Adding why it fits…" placeholder; the progress bar keeps moving between steps (it sat at 70% for 4 s during checking in the first try).
 - **Checked:** 90 unit tests, 8 browser tests (new: reasons present on opening; a 25 s check opens the matches at 15 s and the reasons arrive later with no placeholder), and a live run against Gemini: matching 9.8 s in all, checking 4.2 s of it, every photo with its reason when the screen opened, no fallback.
 
+## 16 Nov 2026: picked photos copied before decoding
+
+- **Owner's phone test:** 24 of 30 photos left out with the same `NotReadableError` as before; on a second try a few minutes later, all 30 went in. Earlier tries: 32 → 4, 30 → 30, 30 → 6, 30 → 30. The phone withdraws access to picked photos partway through, at a point that varies; the 16 Nov picker change didn't stop it.
+- **Reproduced in desktop Chrome:** Chrome refuses a picked file the same way (same three errors, word for word) once it changes on disk. A browser test picks 30 photos from disk and changes them once the first is ready: 4 of 30 went in before the fix.
+- **Changed:** every picked photo's bytes are copied into a file the page owns as soon as they're picked (8 at a time, before the slow decoding); decoding reads the copies, and each copy is let go once its photo is ready. A photo that can't be copied still gets the usual attempts to open it. The photo report now also says how many were copied, how long that took, when the first failure came, and whether the page went to the background.
+- **Checked:** 92 unit tests (new: copying keeps name, type and date; unreadable files are handed back and the rest still copied), 9 browser tests (the new one: 30 of 30 after the fix). Whether the copies finish before the phone withdraws access only a phone test shows; the report will say either way.
+
 ## Where things stand (16 Nov 2026)
 
 **Done:** the core loop for "I have writing", end to end and deployed: words with a live photo estimate → photos (working copies, stacks) → consent → matching with reasons → review (swap, move a line, caption only, fewer/more, undo) → preview (change a photo, share, copy). The draft is saved on the device. Tested once on the owner's phone with a real trip.
