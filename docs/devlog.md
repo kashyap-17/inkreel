@@ -151,6 +151,13 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Caught on its first run:** "Add a photo" on the matches screen opened an empty list when the part's photo was taken within 15 minutes of the others (those photos were filed under "Around then", which isn't shown when adding). Fixed; this was live for a short while in the previous deploy.
 - **Checked:** 5 browser tests and the live one pass; 90 unit tests.
 
+## 16 Nov 2026: photos withdrawn by the phone mid-read
+
+- **Owner's phone test:** 28 of 32 photos left out again. The error report in the server log gave the cause for the first time: `NotReadableError` ("permission problems that have occurred after a reference to a file was acquired") on plain 2–6 MB JPEGs. Not HEIC and not memory, which the 13 Nov changes had assumed; that all 30 photos went in on 13 Nov was timing, not the fix.
+- **Likely cause:** the file picker was cleared straight after a pick (so the same photos could be picked again), and was disabled while reading. On Android either can withdraw access to files not yet read; only the first four were read in time.
+- **Changed:** the picker is cleared only after every file has been read, and is no longer disabled during reading (the button blocks taps instead). Both suspects are changed together, so the test won't say which one it was.
+- **Not verified:** this can't be reproduced in desktop Chrome; only the owner's phone shows whether it holds.
+
 ## Where things stand (16 Nov 2026)
 
 **Done:** the core loop for "I have writing", end to end and deployed: words with a live photo estimate → photos (working copies, stacks) → consent → matching with reasons → review (swap, move a line, caption only, fewer/more, undo) → preview (change a photo, share, copy). The draft is saved on the device. Tested once on the owner's phone with a real trip.

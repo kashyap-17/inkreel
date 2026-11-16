@@ -34,7 +34,7 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
   const reading = status.kind === "reading";
 
   async function onPick(list: FileList | null, replace: boolean) {
-    if (!list || list.length === 0) return;
+    if (!list || list.length === 0 || reading) return;
     const all = Array.from(list);
     const images = all.filter(isPhoto);
     // Photos set aside earlier are judged again with the new ones.
@@ -314,7 +314,7 @@ function PickButton({
   label: string;
   secondary?: boolean;
   disabled?: boolean;
-  onPick: (files: FileList | null) => void;
+  onPick: (files: FileList | null) => Promise<void> | void;
 }) {
   return (
     <label className={`button${secondary ? " secondary" : ""}${disabled ? " disabled" : ""}`}>
@@ -324,10 +324,16 @@ function PickButton({
         type="file"
         accept="image/*"
         multiple
-        disabled={disabled}
+        // Not disabled while photos are read (the label blocks taps instead): changing the picker
+        // mid-read is the other thing that could make Android withdraw access to the files.
+        tabIndex={disabled ? -1 : undefined}
         onChange={(e) => {
-          onPick(e.target.files);
-          e.target.value = "";
+          const input = e.target;
+          // The picker is cleared (so the same photos can be picked again) only after every file
+          // has been read: clearing it earlier makes Android withdraw access to the files.
+          void Promise.resolve(onPick(input.files)).finally(() => {
+            input.value = "";
+          });
         }}
       />
     </label>
