@@ -13,7 +13,7 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 ## Product rules (agreed direction)
 - **The user's own words are never reworded** in "fully yours" mode. Splitting into chunks at sentence breaks, ordering, and choosing which parts to use are allowed. The user writes freely; Inkreel does the chunking (see `docs/decisions.md`).
 - **Provenance is always visible:** AI-written text is marked differently from the user's words.
-- Three authorship modes: AI writes from the user's prompts/answers · fully the user's writing · hybrid (AI suggestions accepted or rejected one by one). The start screen shows two choices: "I have writing" and "Write with Inkreel" (the two AI-assisted modes together, not built yet).
+- Three authorship modes: AI writes from the user's prompts/answers · fully the user's writing · hybrid (AI suggestions accepted or rejected one by one). The start screen shows two choices: "I have writing" and "Write with Inkreel" (the two AI-assisted modes together; AI writes from the answers is built, hybrid isn't).
 - **Each chunk gets one photo, and a post never repeats a shot.** Near-identical shots taken within a couple of minutes form a stack; a post uses at most one photo per stack. Swapping offers other shots of the same scene, photos from around then, and the rest of the trip (see `docs/decisions.md`).
 - Every match shows a short reason, and every match can be swapped.
 - Positioning must lead with the real benefit: from a huge trip album to shareable posts, keeping the user's voice and personality.
@@ -64,7 +64,7 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 - `docs/`: plan, decisions, market notes, devlog (see "Where things go").
 - `web/`: the app. Config files (`package.json`, `tsconfig.json`, `next.config.ts`, `eslint.config.mjs`, `vitest.config.mts`, `.npmrc`, `.nvmrc`) sit here because the tools look for them next to `package.json`.
 - `web/e2e/`: browser tests (Playwright) and the sample photos they draw.
-- `web/src/app/`: the page, and `api/` routes for the model calls (`embed`, `queries`, `check`, `invite`) and the server log (`report` for photo errors, `record` for test records in tester mode).
+- `web/src/app/`: the page, and `api/` routes for the model calls (`embed`, `queries`, `check`, `draft`, `invite`) and the server log (`report` for photo errors, `record` for test records in tester mode).
 - `web/src/components/`: screens (`Flow` holds the steps and saves the draft: start, words, photos, consent, matching, review, preview) and UI pieces.
 - `web/src/lib/flow/`: the flow as a typed reducer (steps, writing, photos, matches, review edits, undo), with tests.
 - `web/src/lib/words/`: sentence splitting (never changes the words) and the photo estimate, with tests.
@@ -72,5 +72,6 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 - `web/src/lib/match/`: matching in the browser: time hints, chunking (plain code, tested) and the run that calls the server.
 - `web/src/lib/ai/`: request and reply schemas (Zod) shared with the server, and the browser client with retries.
 - `web/src/lib/store/`: the draft saved on the device (IndexedDB).
-- `web/src/server/`: the only code that talks to Gemini: prompts (versioned), calls, invite check.
+- `web/src/server/`: the only code that talks to Gemini: calls, invite check, and `prompts/` (one file per call, each versioned in `src/config/ai.ts`).
+- Screens: status and error messages say "the AI", not a vendor; the places that say where data goes (the note before drafting, the consent screen) name Google's Gemini.
 - `web/src/config/`: the product name (`app.ts`) and model per call (`ai.ts`).

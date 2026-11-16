@@ -1,78 +1,92 @@
+"use client";
+
+import { useState } from "react";
 import { APP_NAME, APP_TAGLINE } from "@/config/app";
+import { AiError, hasInvite, saveInvite, verifyInvite } from "@/lib/ai/client";
 import type { Mode } from "@/lib/flow/flow";
 
-interface ModeOption {
-  mode: Mode;
-  title: string;
-  body: string;
-  ready: boolean;
-}
-
-const MODES: ModeOption[] = [
+const MODES: { mode: Mode; title: string; body: string }[] = [
   {
     mode: "own",
     title: "I have writing",
     body: "Paste or type your notes, a poem, anything you want to say. Used exactly as you wrote it.",
-    ready: true,
   },
   {
     mode: "help",
     title: "Write with Inkreel",
-    body: "Inkreel helps you find the words, from a few questions or by suggesting lines. Anything it writes is marked as AI.",
-    ready: false,
+    body: "Answer a few short questions and Inkreel drafts lines from your answers. You can change every line.",
   },
 ];
 
-export function StartScreen({ onChoose }: { onChoose: (mode: Mode) => void }) {
+/**
+ * What Inkreel is, the invite code (asked once per device), and the two ways to start.
+ * `message`: why the code is asked for again, e.g. the server turned the saved one down.
+ */
+export function StartScreen({ onChoose, message }: { onChoose: (mode: Mode) => void; message?: string | null }) {
+  // Read on the client only: this screen isn't shown before the saved draft has loaded.
+  const [needsCode] = useState(() => !hasInvite());
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(message ?? null);
+
+  async function choose(mode: Mode) {
+    if (!needsCode) return onChoose(mode);
+    setBusy(true);
+    setError(null);
+    try {
+      if (!(await verifyInvite(code.trim()))) {
+        setError(code.trim() ? "That invite code isn’t right." : "Enter your invite code first.");
+        return;
+      }
+      saveInvite(code.trim());
+      onChoose(mode);
+    } catch (e) {
+      setError(e instanceof AiError ? e.message : "Couldn’t reach Inkreel’s server. Check your connection.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <>
       <p className="wordmark">{APP_NAME}</p>
       <h1 className="hero">{APP_TAGLINE}</h1>
       <p className="lede">
-        A camera roll full of photos, and a few lines that say how it really felt. Start with your words, and Inkreel finds
-        the photos in your album that go with them, so what you post sounds like you.
+        Add as many photos as you like and a few lines about how it felt. Inkreel picks the photos that fit your words,
+        puts them in order with a reason for each, and gives you a carousel and caption ready to post.
       </p>
 
-      <ol className="how">
-        <li>
-          <strong>Write.</strong> Your notes, a poem, or a few lines about how it felt.
-        </li>
-        <li>
-          <strong>Add photos.</strong> Just the ones you want, or more and Inkreel picks the ones that best fit your
-          writing.
-        </li>
-        <li>
-          <strong>Match.</strong> Inkreel picks the photos that best fit your writing and puts them in order, with a
-          short reason for each. Swap any you’d pick differently.
-        </li>
-        <li>
-          <strong>Share.</strong> A carousel and caption, ready to post.
-        </li>
-      </ol>
-
-      <ul className="promises small">
-        <li>Your words are never rewritten. Anything AI writes is marked.</li>
-        <li>Your photos stay on your phone. Inkreel asks before sending any of them.</li>
-      </ul>
+      {needsCode && (
+        <div className="invite">
+          <label htmlFor="invite" className="small">
+            Invite code
+          </label>
+          <input
+            id="invite"
+            className="text-input"
+            autoComplete="off"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="From whoever shared Inkreel with you"
+          />
+        </div>
+      )}
+      {error && <p className="warn">{error}</p>}
 
       <h2>How do you want to tell it?</h2>
       <div className="modes">
-        {MODES.map((m) =>
-          m.ready ? (
-            <button key={m.mode} type="button" className="mode" onClick={() => onChoose(m.mode)}>
-              <span className="mode-title">{m.title}</span>
-              <span className="mode-body">{m.body}</span>
-            </button>
-          ) : (
-            <div key={m.mode} className="mode disabled" aria-disabled="true">
-              <span className="mode-title">
-                {m.title} <span className="badge">Coming soon</span>
-              </span>
-              <span className="mode-body">{m.body}</span>
-            </div>
-          ),
-        )}
+        {MODES.map((m) => (
+          <button key={m.mode} type="button" className="mode" disabled={busy} onClick={() => void choose(m.mode)}>
+            <span className="mode-title">{m.title}</span>
+            <span className="mode-body">{m.body}</span>
+          </button>
+        ))}
       </div>
+
+      <ul className="promises small">
+        <li>Your words are never rewritten, and anything AI writes is marked.</li>
+        <li>Your photos stay on your phone until you say so.</li>
+      </ul>
     </>
   );
 }

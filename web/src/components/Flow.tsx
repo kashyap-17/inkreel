@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { APP_NAME } from "@/config/app";
 import { BUILD_ID } from "@/config/build";
-import { AiError, sendTestRecord } from "@/lib/ai/client";
+import { AiError, forgetInvite, sendTestRecord } from "@/lib/ai/client";
 import {
   canGoTo,
   cardPhotoIds,
@@ -20,7 +20,9 @@ import { describeAction } from "@/lib/flow/record";
 import { checkCards, matchByHand } from "@/lib/match/run";
 import { clearAll, kvGet, kvSet } from "@/lib/store/db";
 import { logEvent } from "@/lib/store/events";
+import { AnswersStep } from "./AnswersStep";
 import { ConsentStep } from "./ConsentStep";
+import { DraftStep } from "./DraftStep";
 import { MatchingStep } from "./MatchingStep";
 import { forgetPhotoUrls } from "./Photo";
 import { PhotoStep } from "./PhotoStep";
@@ -50,7 +52,8 @@ export function Flow() {
   const [loaded, setLoaded] = useState(false);
   // Read on the client only; the first render (before the draft loads) looks the same either way.
   const [tester] = useState(() => typeof window !== "undefined" && readTesterMode());
-  const [consentMessage, setConsentMessage] = useState<string | null>(null);
+  /** Why the start screen asks for the invite code again. */
+  const [startMessage, setStartMessage] = useState<string | null>(null);
 
   // Restore the draft saved on this device, at the step the user left.
   useEffect(() => {
@@ -132,7 +135,11 @@ export function Flow() {
     // Reasons appear part by part as each answer arrives.
     checkCards(snapshot, snapshot.cards, undefined, (verdicts) => rawDispatch({ type: "verdicts", verdicts }))
       .catch((e: unknown) => {
-        if (e instanceof AiError && e.status === 401) setConsentMessage("That invite code isn’t right.");
+        // The code is asked for again the next time the start screen is shown.
+        if (e instanceof AiError && e.status === 401) {
+          forgetInvite();
+          setStartMessage("That invite code isn’t right.");
+        }
       });
   }, [uncheckedKey]);
 
@@ -192,14 +199,24 @@ export function Flow() {
     dispatch({ type: "matched", match, cards, target });
   }, [state, dispatch]);
 
-  const inviteRejected = useCallback((message: string) => {
-    setConsentMessage(message);
-    dispatch({ type: "goTo", step: "consent" });
-  }, [dispatch]);
+  // The server turned the saved code down: back to the start screen to enter it again. The
+  // writing, photos and draft stay, so choosing the same way to start picks up where it was.
+  const inviteRejected = useCallback(
+    (message: string) => {
+      forgetInvite();
+      setStartMessage(message);
+      dispatch({ type: "goTo", step: "start" });
+    },
+    [dispatch],
+  );
 
   if (!loaded) return <main aria-busy="true" />;
 
-  const hasDraft = state.text.length > 0 || state.photos.length > 0;
+  const hasDraft =
+    state.text.length > 0 ||
+    state.photos.length > 0 ||
+    state.draft.length > 0 ||
+    Object.values(state.answers).some((a) => a.trim());
   return (
     <TesterContext.Provider value={tester}>
     <main>
@@ -213,11 +230,25 @@ export function Flow() {
           )}
         </header>
       )}
-      {state.step === "start" && <StartScreen onChoose={(mode) => dispatch({ type: "chooseMode", mode })} />}
-      {state.step === "words" && <WordsStep state={state} dispatch={dispatch} />}
+      {state.step === "start" && (
+        <StartScreen
+          message={startMessage}
+          onChoose={(mode) => {
+            setStartMessage(null);
+            dispatch({ type: "chooseMode", mode });
+          }}
+        />
+      )}
+      {state.step === "words" &&
+        (state.mode === "help" ? (
+          <AnswersStep state={state} dispatch={dispatch} onInviteRejected={inviteRejected} />
+        ) : (
+          <WordsStep state={state} dispatch={dispatch} />
+        ))}
+      {state.step === "draft" && <DraftStep state={state} dispatch={dispatch} onInviteRejected={inviteRejected} />}
       {state.step === "photos" && <PhotoStep state={state} dispatch={dispatch} />}
       {state.step === "consent" && (
-        <ConsentStep state={state} dispatch={dispatch} onMatchByHand={byHand} message={consentMessage} />
+        <ConsentStep state={state} dispatch={dispatch} onMatchByHand={byHand} />
       )}
       {state.step === "matching" && (
         <MatchingStep state={state} dispatch={dispatch} onMatchByHand={byHand} onInviteRejected={inviteRejected} />

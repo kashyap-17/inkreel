@@ -21,15 +21,46 @@ test.beforeEach(async ({ page }) => {
   page.on("pageerror", (error) => {
     throw error;
   });
+  // Any invite code is accepted, so these tests also run against the live site (E2E_URL).
+  await page.route("**/api/invite", (route) => route.fulfill({ json: { ok: true } }));
 });
 
 test("start screen: two choices, and no mention of trips or hundreds", async ({ page }) => {
   await page.goto("/?tester=0");
   const text = await page.locator("main").innerText();
   expect(text).not.toMatch(/trip|hundreds/i);
-  await expect(page.getByRole("button", { name: /I have writing/ })).toBeVisible();
-  await expect(page.getByText("Write with Inkreel")).toBeVisible();
-  await expect(page.getByText("Coming soon")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /I have writing/ })).toBeEnabled();
+  await expect(page.getByRole("button", { name: /Write with Inkreel/ })).toBeEnabled();
+  await expect(page.getByText("Coming soon")).toHaveCount(0);
+});
+
+test("start screen: the invite code is asked for once, before either choice", async ({ page }) => {
+  await page.unroute("**/api/invite");
+  await page.route("**/api/invite", (route) =>
+    route.request().headers()["x-invite-code"] === "right"
+      ? route.fulfill({ json: { ok: true } })
+      : route.fulfill({ status: 401, json: { error: "That invite code isn't right." } }),
+  );
+  await page.goto("/?tester=0");
+  await page.getByLabel("Invite code").fill("wrong");
+  await page.getByRole("button", { name: /I have writing/ }).click();
+  await expect(page.getByText("That invite code isn’t right.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your words" })).toHaveCount(0);
+
+  await page.getByLabel("Invite code").fill("right");
+  await page.getByRole("button", { name: /I have writing/ }).click();
+  await expect(page.getByRole("heading", { name: "Your words" })).toBeVisible();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(page.getByLabel("Invite code")).toHaveCount(0);
+
+  // The consent screen no longer asks for it.
+  await page.getByRole("button", { name: /I have writing/ }).click();
+  await page.locator("textarea").fill(WRITING);
+  await page.getByRole("button", { name: "Next: add photos" }).click();
+  await page.locator("input[type=file]").first().setInputFiles(await goodPhotos(page, 2));
+  await page.getByRole("button", { name: "Next: find matches" }).click();
+  await expect(page.getByRole("heading", { name: "Before anything is sent" })).toBeVisible();
+  await expect(page.getByLabel("Invite code")).toHaveCount(0);
 });
 
 test("photos stay readable when the phone withdraws access partway through", async ({ page }, testInfo) => {
@@ -144,7 +175,6 @@ test("live: real matching gives every photo a reason", async ({ page }) => {
   // Tester mode, so a failed search call shows on the matches screen and fails this test.
   await page.goto("/?tester=1");
   await page.getByRole("button", { name: "Next: find matches" }).click();
-  await page.getByLabel("Invite code").fill(process.env.INVITE_CODE ?? "");
   await page.getByRole("button", { name: "Send and find matches" }).click();
   await expect(page.getByRole("heading", { name: "Your matches", exact: true })).toBeVisible({ timeout: 180_000 });
   await expect(page.getByText("Checking the matches and writing reasons…")).toHaveCount(0, { timeout: 120_000 });

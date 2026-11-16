@@ -66,8 +66,8 @@ function advance(p: Progress, stage: Stage): Progress {
 }
 
 const WAIT_TEXT: Record<Wait["reason"], string> = {
-  busy: "Google’s AI is busy right now",
-  limit: "Google’s AI asked Inkreel to slow down",
+  busy: "The AI is busy right now",
+  limit: "The AI asked Inkreel to slow down",
   connection: "The connection dropped",
 };
 

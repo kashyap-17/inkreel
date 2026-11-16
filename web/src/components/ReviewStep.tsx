@@ -152,9 +152,11 @@ function MatchCard({
   const photos = card.captionOnly ? [] : orderedPhotos(state, card);
   const lookedFor = card.sentenceIds.map((id) => match?.lookedFor[id]).filter(Boolean) as string[];
   const lines = card.sentenceIds.length;
+  const byInkreel = state.sentences.some((s) => s.source === "ai" && card.sentenceIds.includes(s.id));
 
   return (
     <li className="card match">
+      {byInkreel && <span className="label ai">Written with Inkreel</span>}
       <p className="words">{cardText(state, card)}</p>
       {card.textChanged && <span className="label weak">Words changed: check the photos</span>}
 

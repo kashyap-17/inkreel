@@ -16,7 +16,7 @@ Your words stay exactly as you wrote them. Where AI adds text, it is marked so y
 
 ## Status
 
-Early development, testing with invited users. The whole path works for "I have writing": words, photos, matching with reasons, review, and a carousel to share. Your draft is saved on your device. "Help me write" and "Mix" are next.
+Early development, testing with invited users. The whole path works: start from your own writing, or answer a few questions and let Inkreel draft lines from your answers (each line shows which of your words it came from); then photos, matching with reasons, review, and a carousel to share. Your draft is saved on your device. Suggested lines inside your own writing ("Mix") are next.
 
 ## What's in this repository
 

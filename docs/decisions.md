@@ -14,12 +14,12 @@ The first screen asks how the user wants to tell the trip:
 All three modes end in the same thing: one write-up, with each part marked as the user's or the AI's. Everything after that is identical for every mode: photos → matches → preview and share. The AI never sees the photos while writing.
 
 - **Not chosen:** per-moment questions shown next to photos. That makes the flow photo-first, like existing AI travel journals.
-- **Build order:** fully yours first, then help me write, then mix. Help me write is how people without writing get in; mix has the most UI and the fiddliest rules, so it goes last. The first screen shows all three from the start, unbuilt ones marked "coming soon".
+- **Build order:** fully yours first, then help me write, then mix. Help me write is how people without writing get in; mix has the most UI and the fiddliest rules, so it goes last. The first screen shows two choices, "I have writing" and "Write with Inkreel"; help me write was built on 16 Nov, mix isn't yet.
 - **Provenance:** AI text always looks different from the user's words, with a toggle in the preview to keep or hide the marking in the final post.
 
 ## Write with Inkreel: one writing surface, drafts traced to the user's words (16 Nov 2026)
 
-Designed with the owner from the review's papers and further reading (records in Zotero, tag `inkreel-litreview`). Not built yet.
+Designed with the owner from the review's papers and further reading (records in Zotero, tag `inkreel-litreview`). Built on 16 Nov.
 
 **What the research says** (the parts the design rests on):
 - Ownership follows contribution and felt control: writing it yourself gave clear ownership; getting, choosing or editing AI text all left it feeling mostly the AI's, about equally; editing shifted control back most. Personalising the AI on the person's own writing didn't change ownership. Most people still signed AI text as their own (Draxler et al. 2024).
@@ -33,9 +33,10 @@ Designed with the owner from the review's papers and further reading (records in
 2. A place or thing that stands out
 3. How it felt
 4. Anything else
+- Dropping "Anything else" was proposed while building; the owner kept it (16 Nov). The nudge suggests only the first three.
 - Headings are labels that stay visible; each section grows as you type; empty ones are skipped. Chosen over prompts above one box (the owner: only one prompt gets used per attempt) and over separate boxes (reads as a form).
 - **One nudge, once:** on "Next: draft it with Inkreel" with only one section filled: "A second detail makes the lines more yours. Add a place or how it felt?" with "Add one" and "Draft anyway". Never blocks.
-- **Before the draft is sent:** a line by the button says the answers go to Google's Gemini AI to draft the lines; the invite code is asked for there if none is saved (the draft is sent before the photos' consent screen).
+- **Before the draft is sent:** a line by the button says the answers go to Google's Gemini AI to draft the lines. The invite code is asked for on the start screen (see "Access").
 
 **The draft:**
 - A few short lines (about 4–8), from the answers only, keeping the person's own phrases where they fit, no invented people, places or events, no photos as input. Each line comes with the section it draws on and the exact phrase.
@@ -43,7 +44,11 @@ Designed with the owner from the review's papers and further reading (records in
 - **The person's exact words inside a line are highlighted** (runs of two or more words found in the answers that include at least one word that isn't a stopword).
 - **Not every line styled as AI:** one light "Written with Inkreel" label on the draft and on matches made of these lines (the mode itself is AI-assisted; the source and highlights say more). The caption stays plain text.
 - **Each line can be edited in place or dropped** (editing first: it moves control back to the person). **"Change my answers"** goes back to the sections with the text kept; **"Draft again"** writes a new draft. Then "Next: add photos", and the rest of the flow is the same as for own writing.
-- **Model:** Lite with backup requests (as for the searches), not Flash as first planned: Flash hung under load on 16 Nov. Quality to be judged in the owner's tests.
+- **Model:** Lite (`gemini-3.5-flash-lite`, the newest Lite) with backup requests at 6 s and 12 s, 25 s in all. The owner asked for Flash first; compared on 16 Nov with prompt `draft-v2` on three short, realistic answers ("sunset at the beach" + "calm"; "tiny ramen place near the station" + "so happy, full"; "dancing at my cousin's wedding" + "first time all of us together in years"): 3.6 and 3.5 Flash wrote nearly the same lines as Lite but took 14–43 s; 3.8 Flash was busy or hung every time; Lite took 1–6 s (once 40 s, which the backups cover). With few words and a rule to add nothing, there's little for a stronger model to do. Temperature 0.9 (the other calls use 0.4), so "Draft again" gives a different draft. Quality to be judged in the owner's tests.
+- **Prompt `draft-v2`** (16 Nov, after the owner's review of v1): keep as many of the person's words as possible and every specific thing (places, food, objects, names, numbers) exactly as written; small joining words and reordering allowed, no fancier words; as many lines as the answers can carry (usually 2 to 6), never padded, because real answers are often a few words. v1 asked for 4 to 8 lines, which pushes the model to pad short answers.
+- **Messages:** the empty-answers tap says "Write something in at least one section first."; while drafting, "Drafting your lines from your answers…", after 8 s "The AI is slow right now. Still trying, for up to half a minute."; status and error messages name no vendor (owner, 16 Nov).
+- **Limit of the name check:** a capitalised word that starts a line or sentence isn't checked, since nearly every line starts with one; an invented name there ("Maria waited…") isn't flagged. Telling names from ordinary words there would need a word list. The prompt forbids invented names; the check is the safety net for names inside a line.
+- **Each mode keeps its own writing:** going back and choosing the other way to start doesn't carry text across. The user's own writing is put aside while they write with Inkreel and comes back after, so AI lines are never taken for the user's words (every sentence records who wrote it).
 
 **Not now:** suggested lines inserted into the person's own writing (the "mix" half), follow-up questions written by AI, questions based on the photos.
 
@@ -159,7 +164,7 @@ Almost everything runs in the browser. The server only holds the AI API key and 
 - **Why:** an API key in browser code can be copied by anyone who opens the page.
 - **No database, no file storage, no accounts in the MVP.** Drafts are saved in the browser (IndexedDB). The server keeps nothing.
 - **Trade-off:** a draft can't be resumed on another device. Long-term memory (corrections, people and places) will need a database later.
-- **Access:** an invite code for testers, so the public URL can't use up the AI quota. Outside testers need the paid Gemini tier first (see "AI model"). The code is the `INVITE_CODE` setting on the server; without it, the deployed server refuses every model call. The consent screen asks for it once and the browser remembers it.
+- **Access:** an invite code for testers, so the public URL can't use up the AI quota. Outside testers need the paid Gemini tier first (see "AI model"). The code is the `INVITE_CODE` setting on the server; without it, the deployed server refuses every model call. The start screen asks for it once, above the two choices, and the browser remembers it (moved there from the consent screen on 16 Nov: without a code the app is only "match by hand", and Write with Inkreel sends the answers before any consent screen). If the server later turns the saved code down, the app goes back to the start screen to ask again, keeping the writing, photos and draft.
 
 ## Photo input: plain upload from the browser (7 Nov 2026)
 
@@ -199,7 +204,7 @@ Used to index photos, write search queries, check matches and write reasons, and
 | 1. Index photos (images) | Gemini Embedding 2 | One request per photo; free limits fit ~100 photos a minute. |
 | 2. Search queries (text) | Gemini 3.5 Flash Lite (since 16 Nov), Flash once as fallback | Planned on Flash for its judgement; in tests Flash took 25 s or more and hung under load, Lite answers in 1–2 s. See "Waiting and failures" below. |
 | 3. Check and explain (small images) | Gemini 3.5 Flash Lite | A few requests per trip; confirming and naming a visible detail is the easier task. |
-| 4. Help me write (text) | Gemini 3.6 Flash | One request; writing that goes into the user's post. |
+| 4. Help me write (text) | Gemini 3.5 Flash Lite (16 Nov), backups at 6 s and 12 s | Planned on Flash; on short answers Flash wrote the same lines 15–40 s slower (comparison in "Write with Inkreel"). |
 | 5. Mix suggestions (text) | Gemini 3.6 Flash | Same reason as call 4. |
 
 Free-tier limits on the owner's project (AI Studio, 7 Nov 2026):

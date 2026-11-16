@@ -217,7 +217,7 @@ Model per call (see "AI model" in `decisions.md`): call 1 on Gemini Embedding 2;
 
 ## 6. Screens and what each one shows
 
-- **Start:** what Inkreel is, how it works, the two promises, and two choices: "I have writing" and "Write with Inkreel" (help me write and mix together, marked "coming soon"). No "trip" or "hundreds" in the copy.
+- **Start:** the tagline, one paragraph on what Inkreel does (as many photos as you like and a few lines; Inkreel picks the photos that fit, orders them with a reason each; a carousel and caption ready to post), the invite code if none is saved, two choices ("I have writing" and "Write with Inkreel"), and the two promises. The four numbered how-it-works steps were cut on 16 Nov: they repeated each other and the step bar. No "trip" or "hundreds" in the copy.
 - **Words:** a text box for writing freely; no splitting by the user. No photo estimate is shown while the words go in the caption (it returns with text on images). "Write with Inkreel" shows one writing surface with four labelled sections, then a draft whose lines each show the answer they came from, with the person's own words highlighted; lines can be edited or dropped; "Change my answers" and "Draft again" (see `decisions.md`).
 - **Photos:** "Add just the photos you want in your post, or add more and choose how many to keep. Inkreel picks the ones that best fit your writing." Once photos are added, a "How many photos in your post?" control (− n +). Progress for each stage within a second of starting (reading → setting aside → stacking → indexing, "40 of 80"), then a summary ("300 photos, 12–15 Mar", how many were set aside as blurry, too dark or a screenshot) with the set-aside photos viewable, each with its reason and a tap to use it after all, and the photos in time order. No groups and no stack counts are shown. The line under the count says whether every photo will be used or how many will be picked.
 - **Consent:** what will be sent ("small copies of your 30 photos", no pixel sizes), to whom, that Google's API terms apply to what Google receives, and a separate opt-in: "Help improve Inkreel: keep a record of the text sent and received (no photos)".
@@ -264,7 +264,7 @@ The owner chose to build straight away and run these checks in the app rather th
 - **Go on** if at least half the matches are right or nearly right.
 
 ### Milestone 1: core loop, "I have writing"
-- Next.js app; Words → Photos → Consent → Review → Preview → Share. The Words screen shows all three modes; the two not yet built are marked "coming soon".
+- Next.js app; Words → Photos → Consent → Review → Preview → Share. The start screen offers "I have writing" and "Write with Inkreel" (help me write built 16 Nov; mix not yet).
 - Filtering and stacking in the browser; calls 1–3 through the server function, matching and chunking in code; validation; trace.
 - Match by hand when consent is declined or a call fails.
 - Deployed on Vercel with an invite code. Before the link goes to anyone but the owner: paid Gemini tier and an 18+ note (see "AI model" in `decisions.md`).

@@ -322,7 +322,7 @@ export function PhotoStep({ state, dispatch }: { state: FlowState; dispatch: (a:
       </section>
 
       <div className="row actions">
-        <button type="button" className="secondary" onClick={() => dispatch({ type: "goTo", step: "words" })}>
+        <button type="button" className="secondary" onClick={() => dispatch({ type: "goTo", step: state.mode === "help" ? "draft" : "words" })}>
           Back to your words
         </button>
         <button

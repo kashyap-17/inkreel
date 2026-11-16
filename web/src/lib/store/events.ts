@@ -12,8 +12,10 @@ export function logEvent(event: RecordEvent): void {
   queue = queue
     .then(async () => {
       const events = (await kvGet<RecordEvent[]>(EVENTS_KEY)) ?? [];
-      // Typing sends one action per keystroke; keep only the latest of a run.
-      if (event.action === "setText" && events[events.length - 1]?.action === "setText") events.pop();
+      // Typing sends one action per keystroke; keep only the latest of a run (per answer).
+      const last = events[events.length - 1];
+      const typing = event.action === "setText" || event.action === "setAnswer";
+      if (typing && last?.action === event.action && last.detail?.section === event.detail?.section) events.pop();
       events.push(event);
       await kvSet(EVENTS_KEY, events.slice(-LIMIT));
     })

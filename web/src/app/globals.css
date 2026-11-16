@@ -268,7 +268,7 @@ h2 .muted {
 .promises {
   list-style: none;
   padding: 12px 16px;
-  margin: 0 0 8px;
+  margin: 20px 0 8px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -797,4 +797,113 @@ dialog.sheet::backdrop {
   padding-left: 18px;
   margin: 4px 0 0;
   word-break: break-word;
+}
+
+/* Start screen: the invite code, asked once per device. */
+.invite {
+  margin: 20px 0 0;
+}
+
+/* Write with Inkreel: one writing surface, a labelled section per question. */
+.answers {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin: 16px 0 8px;
+}
+
+.answer {
+  padding: 12px 14px 4px;
+}
+
+.answer + .answer {
+  border-top: 1px solid var(--line);
+}
+
+.answer label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.answer textarea {
+  border: 0;
+  padding: 4px 0 8px;
+  margin: 0;
+  border-radius: 0;
+  background: transparent;
+  resize: none;
+  field-sizing: content;
+  min-height: 3em;
+}
+
+.answer textarea:focus {
+  outline: none;
+}
+
+.answer:focus-within label {
+  color: var(--accent);
+}
+
+.nudge .row {
+  gap: 8px;
+}
+
+/* The draft: each line, where it came from, and the person's own words marked. */
+mark.mine {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+.draft-lines {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+}
+
+.draft-line {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin: 8px 0;
+}
+
+.draft-line .line-text {
+  font-size: 1.05rem;
+  margin-bottom: 6px;
+}
+
+.draft-line .source {
+  margin: 2px 0;
+}
+
+.draft-line textarea {
+  margin-top: 0;
+}
+
+.drafting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
 }

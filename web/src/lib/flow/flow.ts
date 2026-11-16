@@ -1,18 +1,19 @@
 // The flow as a typed state machine (a reducer). Steps follow docs/plan.md:
-// words → photos → consent → matching → review → preview.
+// words (or answers → draft, writing with Inkreel) → photos → consent → matching → review → preview.
 import { chunkAndMatch, makeRangeScorer, MATCHING, type Candidate } from "@/lib/match/chunk";
 import { buildStacks, sortByTime } from "@/lib/photos/stacks";
 import type { PhotoRecord, Stack } from "@/lib/photos/types";
 import { estimatePhotos, MAX_PHOTOS, type PhotoEstimate } from "@/lib/words/estimate";
+import { draftText, emptyAnswers, type Answers, type DraftLine, type SectionKey } from "@/lib/words/draft";
 import { countWords, splitSentences } from "@/lib/words/sentences";
 
 export type Mode = "own" | "help" | "mix";
-export type Step = "start" | "words" | "photos" | "consent" | "matching" | "review" | "preview";
+export type Step = "start" | "words" | "draft" | "photos" | "consent" | "matching" | "review" | "preview";
 
 export interface Sentence {
   id: string;
   text: string;
-  /** Who wrote it. Only "user" exists until "help me write" and "mix" are built. */
+  /** Who wrote it: the user, or Inkreel (Write with Inkreel, drafted from the user's answers). */
   source: "user" | "ai";
   /** Where it sits in the writing, so a card's text is an exact slice of what the user wrote. */
   start: number;
@@ -77,8 +78,13 @@ export interface MatchData {
 export interface FlowState {
   step: Step;
   mode: Mode | null;
-  /** The writing exactly as the user typed or pasted it. */
+  /** The writing the post uses: as the user typed or pasted it, or the draft's lines. */
   text: string;
+  /** The user's own writing, kept while they write with Inkreel instead. */
+  ownText: string;
+  /** Write with Inkreel: the user's answers, and the lines drafted from them. */
+  answers: Answers;
+  draft: DraftLine[];
   sentences: Sentence[];
   words: number;
   /** Prepared photos in capture order: the ones matching chooses from. */
@@ -99,6 +105,11 @@ export type FlowAction =
   | { type: "reset" }
   | { type: "chooseMode"; mode: Mode }
   | { type: "setText"; text: string }
+  | { type: "setAnswer"; section: SectionKey; text: string }
+  /** A new draft from the answers; it becomes the writing. */
+  | { type: "setDraft"; lines: DraftLine[] }
+  | { type: "editLine"; lineId: string; text: string }
+  | { type: "dropLine"; lineId: string }
   | { type: "goTo"; step: Step }
   | { type: "setPhotos"; photos: PhotoRecord[]; stacks: Stack[]; setAside?: PhotoRecord[] }
   /** Brings a set-aside photo back into the photos matching chooses from. */
@@ -118,6 +129,9 @@ export const initialFlow: FlowState = {
   step: "start",
   mode: null,
   text: "",
+  ownText: "",
+  answers: emptyAnswers(),
+  draft: [],
   sentences: [],
   words: 0,
   photos: [],
@@ -191,6 +205,8 @@ export function canGoTo(state: FlowState, step: Step): boolean {
     case "start":
     case "words":
       return true;
+    case "draft":
+      return state.mode === "help" && state.draft.length > 0;
     case "photos":
       return state.sentences.length > 0;
     case "consent":
@@ -210,6 +226,10 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
       return {
         ...initialFlow,
         ...action.state,
+        // Drafts saved before Write with Inkreel have no answers or draft.
+        answers: { ...emptyAnswers(), ...action.state.answers },
+        draft: action.state.draft ?? [],
+        ownText: action.state.ownText ?? "",
         cards: (action.state.cards ?? []).map((c) => ({ ...c, extras: c.extras ?? [] })),
         history: (action.state.history ?? []).map((cards) => cards.map((c) => ({ ...c, extras: c.extras ?? [] }))),
       };
@@ -217,23 +237,41 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
     case "reset":
       return initialFlow;
 
-    case "chooseMode":
-      // Only "I have writing" is built so far.
-      if (action.mode !== "own") return state;
-      return { ...state, mode: action.mode, step: "words" };
+    case "chooseMode": {
+      // Mix (suggested lines in the user's own writing) isn't built.
+      if (action.mode === "mix") return state;
+      // Each mode keeps its own writing: the user's own text is put aside while writing with
+      // Inkreel and comes back after, so AI lines are never taken for the user's words.
+      const ownText = state.mode === "help" ? state.ownText : state.text;
+      const next =
+        action.mode === "own"
+          ? withText({ ...state, mode: "own", ownText: "" }, ownText)
+          : withText({ ...state, mode: "help", ownText }, draftText(state.draft));
+      return { ...next, step: action.mode === "help" && state.draft.length ? "draft" : "words" };
+    }
 
-    case "setText": {
-      const sentences = locateSentences(action.text);
-      const same =
-        sentences.length === state.sentences.length && sentences.every((s, i) => s.text === state.sentences[i]?.text);
-      return {
-        ...state,
-        text: action.text,
-        words: countWords(action.text),
-        sentences,
-        // Different sentences mean the matches no longer fit; matching runs again (saved searches are reused).
-        ...(same ? {} : { match: null, cards: [], history: [], target: null }),
-      };
+    case "setText":
+      return state.mode === "help" ? state : withText(state, action.text);
+
+    case "setAnswer":
+      return { ...state, answers: { ...state.answers, [action.section]: action.text } };
+
+    case "setDraft":
+      if (state.mode !== "help" || action.lines.length === 0) return state;
+      return { ...withText({ ...state, draft: action.lines }, draftText(action.lines)), step: "draft" };
+
+    case "editLine": {
+      const text = action.text.replace(/\s+/g, " ").trim();
+      // Edited by the user: their change, so the "check this line" flag is theirs to judge.
+      const draft = text
+        ? state.draft.map((l) => (l.id === action.lineId ? { ...l, text, edited: true, flagged: false } : l))
+        : state.draft.filter((l) => l.id !== action.lineId);
+      return withText({ ...state, draft }, draftText(draft));
+    }
+
+    case "dropLine": {
+      const draft = state.draft.filter((l) => l.id !== action.lineId);
+      return withText({ ...state, draft }, draftText(draft));
     }
 
     case "goTo":
@@ -376,6 +414,24 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
       return { ...state, match, cards: previous, history: state.history.slice(0, -1) };
     }
   }
+}
+
+/**
+ * Sets the writing and its sentences (the user's, or Inkreel's when writing with Inkreel).
+ * Different sentences mean the matches no longer fit; matching runs again (saved searches are reused).
+ */
+function withText(state: FlowState, text: string): FlowState {
+  const sentences = locateSentences(text, state.mode === "help" ? "ai" : "user");
+  const same =
+    sentences.length === state.sentences.length &&
+    sentences.every((s, i) => s.text === state.sentences[i]?.text && s.source === state.sentences[i]?.source);
+  return {
+    ...state,
+    text,
+    words: countWords(text),
+    sentences,
+    ...(same ? {} : { match: null, cards: [], history: [], target: null }),
+  };
 }
 
 /** Stack ID for any photo, so two cards never show shots from one stack. */
@@ -529,12 +585,12 @@ export function defaultTarget(state: FlowState): number {
 }
 
 /** Splits the writing into sentences and records where each one sits in it. */
-export function locateSentences(text: string): Sentence[] {
+export function locateSentences(text: string, source: Sentence["source"] = "user"): Sentence[] {
   let cursor = 0;
   return splitSentences(text).map((sentence, i) => {
     const start = text.indexOf(sentence, cursor);
     cursor = start + sentence.length;
-    return { id: `s${i + 1}`, text: sentence, source: "user", start, end: cursor };
+    return { id: `s${i + 1}`, text: sentence, source, start, end: cursor };
   });
 }
 

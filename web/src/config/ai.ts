@@ -4,10 +4,15 @@ export const MODELS = {
   /** Lite: 1.5–3.5 s. Flash took 25 s or more and hung under load (16 Nov tests). */
   queries: "gemini-3.5-flash-lite",
   check: "gemini-3.5-flash-lite",
+  /**
+   * Write with Inkreel: Lite with backup requests, as for the searches. Compared on 16 Nov with
+   * 3.8, 3.6 and 3.5 Flash on short answers: the same lines, but Flash took 15–43 s and 3.8 was busy.
+   */
+  draft: "gemini-3.5-flash-lite",
 } as const;
 
 /** Prompt versions (prompts in src/server/prompts.ts). Bump on every prompt change. */
-export const PROMPT_VERSIONS = { queries: "queries-v3", check: "check-v4" } as const;
+export const PROMPT_VERSIONS = { queries: "queries-v3", check: "check-v4", draft: "draft-v2" } as const;
 
 export const EMBED_DIMENSIONS = 768;
 

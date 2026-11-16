@@ -197,11 +197,21 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Changed:** every picked photo's bytes are copied into a file the page owns as soon as they're picked (8 at a time, before the slow decoding); decoding reads the copies, and each copy is let go once its photo is ready. A photo that can't be copied still gets the usual attempts to open it. The photo report now also says how many were copied, how long that took, when the first failure came, and whether the page went to the background.
 - **Checked:** 92 unit tests (new: copying keeps name, type and date; unreadable files are handed back and the rest still copied), 9 browser tests (the new one: 30 of 30 after the fix). Whether the copies finish before the phone withdraws access only a phone test shows; the report will say either way.
 
+## 16 Nov 2026: Write with Inkreel built; invite code on the start screen
+
+- **Agreed with the owner before building:** the invite code moves to the start screen (the owner's call: without one the app is only "match by hand"); the start screen loses its four how-it-works steps (they repeated each other and the step bar), with what mattered in them (add as many photos as you like, Inkreel picks and orders them with reasons, a carousel and caption ready to post) moved into the one paragraph.
+- **Proposed while building, not taken:** dropping "Anything else"; the owner kept all four sections.
+- **Built:** the draft call (`/api/draft`, Lite with backup requests, prompt `draft-v1`, temperature 0.9); the questions screen (one surface, four labelled sections, the one-time nudge, the Gemini note); the draft screen (each line with "From your answer: '…'", the person's own words highlighted, "Check this line" for an untraced line or a new name, edit in place, drop, "Draft again", "Change my answers"); "Written with Inkreel" on the draft and on matches made of its lines; each mode keeps its own writing; the answers and draft in the test record. The consent screen no longer asks for the code; a turned-down code goes back to the start screen.
+- **Found while testing:** the name check skips the first word of a line, so an invented name there isn't flagged (recorded in `decisions.md`).
+- **After review:** a busy or failed draft says so in plain words and keeps the answers; a draft taking over 8 s says Google's AI is slow and that it keeps trying; answers are capped at the server's 3,000 characters; the consent screen says "Before your photos are sent" in this mode (the answers were already sent to draft); "Draft again" asks first when lines were edited; "Start over" shows once answers are typed.
+- **Owner's review of the wording and prompt:** "Anything else" stays (four sections); prompts move to `web/src/server/prompts/`, one file per call; status messages say "the AI" rather than Google; tapping Next with every section empty explains itself; prompt `draft-v2` keeps as many of the person's words as possible and every specific thing, with the line count following what they gave. The owner asked to try Flash first, then an older Flash, before Lite: compared on three short answers (see `decisions.md`), Flash wrote the same lines 15–40 s slower and 3.8 Flash was busy, so Lite stays.
+- **Checked:** 109 unit tests (quote checking, own-word highlighting, name flags, the reducer's new actions and mode switching), 15 browser tests (5 new for Write with Inkreel: the whole path, modes kept apart, a turned-down code, a busy then slow draft, a reload; 1 for the invite code), and one live draft with Gemini: 4 lines in about 7 s, all traced to the answers, nothing invented, staying very close to the answers' own words.
+
 ## Where things stand (16 Nov 2026)
 
-**Done:** the core loop for "I have writing", end to end and deployed: words with a live photo estimate → photos (working copies, stacks) → consent → matching with reasons → review (swap, move a line, caption only, fewer/more, undo) → preview (change a photo, share, copy). The draft is saved on the device. Tested once on the owner's phone with a real trip.
+**Done:** the core loop for "I have writing", end to end and deployed: words with a live photo estimate → photos (working copies, stacks) → consent → matching with reasons → review (swap, move a line, caption only, fewer/more, undo) → preview (change a photo, share, copy). The draft is saved on the device. Tested once on the owner's phone with a real trip. Write with Inkreel (answers → draft traced to them → the same flow) built 16 Nov, not yet tested by the owner.
 
-**Next to build:** Write with Inkreel as designed in `decisions.md` (the reason check inside matching was built on 16 Nov evening). Each commit needs the owner's approval.
+**Next:** the owner's test of Write with Inkreel (built 16 Nov). Each commit needs the owner's approval.
 
 **Waiting on the owner:** a second phone test of the 13 and 16 Nov changes (same poem and photos is fine, with `?tester=1` once so the record reaches the log); whether the caption pasted in Instagram after Share; the owner's own picks for the London poem, if a fuller comparison is wanted later.
 
@@ -210,7 +220,7 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - Reordering and dropping cards (caption only covers dropping a photo); "one photo" as a single tap; keeping swapped cards when photos are added after matching (adding photos currently re-matches everything).
 - Langfuse tracing and the consent opt-in for it (no Langfuse account yet). Until then, tester mode and the server log cover the owner's own tests.
 - Milestone 0 comparison with the owner's picks recorded first; tuning the stack window, hash threshold, time bonus, balance, blank-line cost and weak-match margin.
-- Help me write and Mix (Milestone 2); text on images (to reconsider after real posts).
+- Mix (Milestone 2); text on images (to reconsider after real posts).
 
 **Known limits:** Google's models are sometimes overloaded ("high demand"); matching then retries briefly and may search with the user's lines as written; consent is asked again when the writing or photos change after matching; the product name appears as plain text in the screens' copy (rename by search and replace in `web/src/components`); Vercel keeps runtime logs for about 30 minutes.
 

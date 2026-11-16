@@ -1,0 +1,146 @@
+// Write with Inkreel: the question sections, and the checks run in code on every drafted line,
+// so each line shows where it came from and the person's own words can be picked out.
+import { SECTION_KEYS, type Answers, type DraftedLine, type SectionKey } from "@/lib/ai/schemas";
+
+export { SECTION_KEYS, type Answers, type SectionKey };
+
+export const SECTIONS: { key: SectionKey; label: string; short: string }[] = [
+  { key: "moment", label: "A moment you keep thinking about", short: "a moment" },
+  { key: "place", label: "A place or thing that stands out", short: "a place" },
+  { key: "felt", label: "How it felt", short: "how it felt" },
+  { key: "other", label: "Anything else", short: "anything else" },
+];
+
+export const emptyAnswers = (): Answers => ({ moment: "", place: "", felt: "", other: "" });
+
+export const filledSections = (answers: Answers): SectionKey[] => SECTION_KEYS.filter((k) => answers[k]?.trim());
+
+/** A line of the draft, as shown and edited on the draft screen. */
+export interface DraftLine {
+  id: string;
+  text: string;
+  /** The answer the line draws on, when its quote was found there. */
+  section: SectionKey | null;
+  /** The person's exact words the line draws on, as they wrote them; null when not confirmed. */
+  quote: string | null;
+  /** No confirmed source, or a name the answers don't have: "check this line". */
+  flagged: boolean;
+  /** Changed by the person. */
+  edited: boolean;
+}
+
+const STOPWORDS = new Set(
+  (
+    "a an the and or but so of to in on at by for with from up down out over into onto off as is am are was were be been " +
+    "being it its it's this that these those there here then than i me my mine we us our you your he him his she her they " +
+    "them their what which who when where how all just not no very too can could would should will do did does had has have " +
+    "if about again some any each one"
+  ).split(" "),
+);
+
+const plain = (s: string) => s.toLowerCase().replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
+
+/** Words as matched against the answers: lower case, straight apostrophes, no punctuation. */
+function words(text: string): { word: string; start: number; end: number }[] {
+  return [...text.matchAll(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu)].map((m) => ({
+    word: plain(m[0]),
+    start: m.index,
+    end: m.index + m[0].length,
+  }));
+}
+
+/** Each answer as " w1 w2 … ", so a run of words can be looked up with a plain search. */
+const wordStrings = (answers: Answers) =>
+  SECTION_KEYS.map((k) => ({ key: k, joined: ` ${words(answers[k] ?? "").map((w) => w.word).join(" ")} ` }));
+
+/** Where a quote really is in the answers: the named section first, then any other. */
+export function findQuote(answers: Answers, quote: string, preferred: string): { section: SectionKey; quote: string } | null {
+  const wanted = words(quote);
+  if (wanted.length === 0 || wanted.every((w) => STOPWORDS.has(w.word))) return null;
+  const needle = ` ${wanted.map((w) => w.word).join(" ")} `;
+  const order = [...SECTION_KEYS].sort((a, b) => Number(b === preferred) - Number(a === preferred));
+  for (const key of order) {
+    const answer = answers[key] ?? "";
+    const own = words(answer);
+    for (let i = 0; i + wanted.length <= own.length; i++) {
+      if (` ${own.slice(i, i + wanted.length).map((w) => w.word).join(" ")} ` === needle) {
+        // Shown as the person wrote it, with their capitals and punctuation.
+        return { section: key, quote: answer.slice(own[i]!.start, own[i + wanted.length - 1]!.end) };
+      }
+    }
+  }
+  return null;
+}
+
+/** Capitalised words in a line (not starting a sentence, not "I") that appear nowhere in the answers. */
+export function unknownNames(line: string, answers: Answers): string[] {
+  const known = new Set(SECTION_KEYS.flatMap((k) => words(answers[k] ?? "").map((w) => w.word)));
+  return [...line.matchAll(/[\p{Lu}][\p{L}]*(?:['’][\p{L}]+)*/gu)]
+    .filter((m) => {
+      const before = line.slice(0, m.index).trimEnd();
+      if (before === "" || /[.!?…:"“]$/.test(before)) return false;
+      if (/^I(['’].*)?$/.test(m[0])) return false;
+      return !known.has(plain(m[0]));
+    })
+    .map((m) => m[0]);
+}
+
+/** Turns the model's lines into draft lines: quotes checked against the answers, doubtful lines flagged. */
+export function checkLines(answers: Answers, drafted: DraftedLine[]): DraftLine[] {
+  const seen = new Set<string>();
+  const lines: DraftLine[] = [];
+  for (const line of drafted) {
+    const text = line.text.replace(/\s+/g, " ").trim();
+    if (!text || seen.has(plain(text))) continue;
+    seen.add(plain(text));
+    const found = findQuote(answers, line.quote, line.section);
+    lines.push({
+      id: `l${lines.length + 1}`,
+      text,
+      section: found?.section ?? null,
+      quote: found?.quote ?? null,
+      flagged: !found || unknownNames(text, answers).length > 0,
+      edited: false,
+    });
+  }
+  return lines;
+}
+
+/**
+ * A line split into the person's own words and the rest: runs of two or more words found
+ * together in one answer, with at least one word that isn't a small word like "the" or "and".
+ */
+export function ownWords(line: string, answers: Answers): { text: string; mine: boolean }[] {
+  const tokens = words(line);
+  const answerStrings = wordStrings(answers).map((a) => a.joined);
+  const found = (from: number, to: number) => {
+    const needle = ` ${tokens.slice(from, to).map((t) => t.word).join(" ")} `;
+    return answerStrings.some((a) => a.includes(needle));
+  };
+  const spans: [number, number][] = [];
+  let i = 0;
+  while (i < tokens.length) {
+    let j = i + 1;
+    while (j < tokens.length && found(i, j + 1)) j++;
+    if (j - i >= 2 && tokens.slice(i, j).some((t) => !STOPWORDS.has(t.word))) {
+      spans.push([tokens[i]!.start, tokens[j - 1]!.end]);
+      i = j;
+    } else i++;
+  }
+  const parts: { text: string; mine: boolean }[] = [];
+  let at = 0;
+  for (const [start, end] of spans) {
+    if (start > at) parts.push({ text: line.slice(at, start), mine: false });
+    parts.push({ text: line.slice(start, end), mine: true });
+    at = end;
+  }
+  if (at < line.length) parts.push({ text: line.slice(at), mine: false });
+  return parts;
+}
+
+/** The writing the rest of the flow uses: one line of the draft per line. */
+export const draftText = (lines: Pick<DraftLine, "text">[]): string =>
+  lines
+    .map((l) => l.text.trim())
+    .filter(Boolean)
+    .join("\n");

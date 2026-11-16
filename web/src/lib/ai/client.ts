@@ -3,9 +3,11 @@
 import type { z } from "zod";
 import {
   CheckReply,
+  DraftReply,
   EmbedReply,
   QueriesReply,
   type CheckRequest,
+  type DraftRequest,
   type EmbedRequest,
   type QueriesRequest,
 } from "./schemas";
@@ -26,6 +28,24 @@ export function savedInvite(): string {
     return localStorage.getItem(INVITE_KEY) ?? "";
   } catch {
     return "";
+  }
+}
+
+/** True once a code has been accepted on this device (locally, with no code set, an empty one). */
+export function hasInvite(): boolean {
+  try {
+    return localStorage.getItem(INVITE_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
+/** After the server turns the saved code down, so the start screen asks for it again. */
+export function forgetInvite(): void {
+  try {
+    localStorage.removeItem(INVITE_KEY);
+  } catch {
+    // Nothing saved.
   }
 }
 
@@ -106,8 +126,10 @@ export const embed = (req: EmbedRequest) => post("/api/embed", req, EmbedReply, 
  */
 export const searchQueries = (req: QueriesRequest) => post("/api/queries", req, QueriesReply, 2, true);
 export const checkMatches = (req: CheckRequest) => post("/api/check", req, CheckReply, 2);
+/** Like the searches: the server sends backup requests, so only a dropped connection is tried again. */
+export const draftLines = (req: DraftRequest) => post("/api/draft", req, DraftReply, 2, true);
 
-/** Confirms the invite code with the server before anything is sent. */
+/** Confirms the invite code with the server (on the start screen, before anything is sent). */
 export async function verifyInvite(code: string): Promise<boolean> {
   const res = await fetch("/api/invite", {
     method: "POST",

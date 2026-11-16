@@ -3,12 +3,15 @@ import { ApiError, GoogleGenAI, ThinkingLevel, type Part } from "@google/genai";
 import { EMBED_DIMENSIONS, MODELS } from "@/config/ai";
 import {
   CheckReply,
+  DraftedLine,
   QueriesReply,
   SentenceQuery,
   type CheckRequest,
+  type DraftReply,
+  type DraftRequest,
   type QueriesRequest,
 } from "@/lib/ai/schemas";
-import { CHECK_SCHEMA, CHECK_TASK, QUERIES_SCHEMA, queriesPrompt } from "./prompts";
+import { CHECK_SCHEMA, CHECK_TASK, DRAFT_SCHEMA, draftPrompt, QUERIES_SCHEMA, queriesPrompt } from "./prompts";
 
 let client: GoogleGenAI | null = null;
 function ai(): GoogleGenAI {
@@ -121,6 +124,7 @@ async function generateJson(
   thinkingLevel: ThinkingLevel,
   timeoutMs: number,
   busyTries = BUSY_TRIES,
+  temperature = 0.4,
 ): Promise<unknown> {
   const res = await call(name, model, async () => {
     try {
@@ -130,7 +134,7 @@ async function generateJson(
         config: {
           responseMimeType: "application/json",
           responseJsonSchema: schema,
-          temperature: 0.4,
+          temperature,
           thinkingConfig: { thinkingLevel },
           abortSignal: AbortSignal.timeout(timeoutMs),
         },
@@ -214,6 +218,9 @@ const QUERIES: Backups = { resendAfterMs: [0, 4_000, 8_000], maxAttempts: 4, dea
 /** Checking a batch of photos (Lite, small images): normally 2–10 s; hangs of 36–40 s seen. */
 const CHECK: Backups = { resendAfterMs: [0, 8_000, 16_000], maxAttempts: 4, deadlineMs: 30_000 };
 
+/** Drafting lines (Lite, text only): normally 1–6 s; one 40 s hang seen, so backups at 6 s and 12 s. */
+const DRAFT: Backups = { resendAfterMs: [0, 6_000, 12_000], maxAttempts: 4, deadlineMs: 25_000 };
+
 /** Call 2: up to three photo descriptions and time hints for every sentence. */
 export async function searchQueries(req: QueriesRequest): Promise<QueriesReply> {
   const prompt = queriesPrompt(req.sentences, req.tripDays);
@@ -252,5 +259,20 @@ export async function checkMatches(req: CheckRequest): Promise<CheckReply> {
     const parsed = CheckReply.safeParse(raw);
     if (!parsed.success) throw new ValidationError("check reply had the wrong shape");
     return parsed.data;
+  });
+}
+
+/**
+ * Call 4: a few short lines from the person's answers, each with the answer it draws on and the
+ * exact words. Warmer than the other calls, so "Draft again" gives a different draft.
+ */
+export async function writeDraft(req: DraftRequest): Promise<DraftReply> {
+  const prompt = draftPrompt(req.answers);
+  const model = MODELS.draft;
+  return firstAnswer(DRAFT, async (msLeft) => {
+    const raw = await generateJson("draft", model, [{ text: prompt }], DRAFT_SCHEMA, ThinkingLevel.LOW, msLeft, 1, 0.9);
+    const parsed = DraftedLine.array().min(1).max(12).safeParse((raw as { lines?: unknown })?.lines);
+    if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "bad shape");
+    return { lines: parsed.data, model };
   });
 }

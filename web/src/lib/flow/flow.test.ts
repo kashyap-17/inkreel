@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { PhotoRecord } from "@/lib/photos/types";
+import type { DraftLine } from "@/lib/words/draft";
 import {
+  canGoTo,
   captionOf,
   cardPhotoIds,
   cardText,
@@ -71,11 +73,6 @@ describe("words", () => {
   it("starts on the start screen and opens the words step for 'I have writing'", () => {
     expect(initialFlow.step).toBe("start");
     expect(run({ type: "chooseMode", mode: "own" }).step).toBe("words");
-  });
-
-  it("ignores modes that aren't built yet", () => {
-    expect(run({ type: "chooseMode", mode: "help" }).step).toBe("start");
-    expect(run({ type: "chooseMode", mode: "mix" }).step).toBe("start");
   });
 
   it("keeps the text exactly as typed and records where each sentence sits in it", () => {
@@ -326,5 +323,84 @@ describe("set-aside photos", () => {
     expect(s.photos.map((p) => p.id)).toEqual(["p1", "p2"]);
     expect(s.photos[1]!.kept).toBe(true);
     expect(s.stacks).toHaveLength(2);
+  });
+});
+
+describe("write with Inkreel", () => {
+  const line = (id: string, text: string): DraftLine => ({
+    id,
+    text,
+    section: "moment",
+    quote: null,
+    flagged: false,
+    edited: false,
+  });
+  const drafted = () =>
+    run(
+      { type: "chooseMode", mode: "help" },
+      { type: "setAnswer", section: "moment", text: "lost in the market" },
+      { type: "setDraft", lines: [line("l1", "Lost in the market."), line("l2", "Nobody minded.")] },
+    );
+
+  it("starts on the questions, and a draft becomes the writing, marked as Inkreel's", () => {
+    expect(run({ type: "chooseMode", mode: "help" }).step).toBe("words");
+    const s = drafted();
+    expect(s.step).toBe("draft");
+    expect(s.answers.moment).toBe("lost in the market");
+    expect(s.text).toBe("Lost in the market.\nNobody minded.");
+    expect(s.sentences.map((x) => [x.text, x.source])).toEqual([
+      ["Lost in the market.", "ai"],
+      ["Nobody minded.", "ai"],
+    ]);
+    expect(captionOf(s)).toBe(s.text);
+  });
+
+  it("editing a line changes the writing and clears its flag; an emptied or dropped line goes", () => {
+    let s = flowReducer(drafted(), { type: "editLine", lineId: "l2", text: "  Nobody   minded at all. " });
+    expect(s.draft[1]).toMatchObject({ text: "Nobody minded at all.", edited: true, flagged: false });
+    expect(s.text).toBe("Lost in the market.\nNobody minded at all.");
+    s = flowReducer(s, { type: "editLine", lineId: "l1", text: " " });
+    expect(s.draft.map((l) => l.id)).toEqual(["l2"]);
+    s = flowReducer(s, { type: "dropLine", lineId: "l2" });
+    expect(s.draft).toEqual([]);
+    expect(s.sentences).toEqual([]);
+    expect(canGoTo(s, "photos")).toBe(false);
+  });
+
+  it("keeps each mode's writing apart, so Inkreel's lines are never taken for the user's", () => {
+    const own = run({ type: "chooseMode", mode: "own" }, { type: "setText", text: "My own words." });
+    let s = flowReducer(own, { type: "chooseMode", mode: "help" });
+    expect(s.text).toBe("");
+    s = flowReducer(s, { type: "setDraft", lines: [line("l1", "Inkreel's line.")] });
+    expect(s.sentences[0]!.source).toBe("ai");
+    // Typing is only for own writing.
+    expect(flowReducer(s, { type: "setText", text: "x" }).text).toBe("Inkreel's line.");
+    s = flowReducer(s, { type: "chooseMode", mode: "own" });
+    expect([s.step, s.text, s.sentences[0]!.source]).toEqual(["words", "My own words.", "user"]);
+    s = flowReducer(s, { type: "chooseMode", mode: "help" });
+    expect([s.step, s.text, s.sentences[0]!.source]).toEqual(["draft", "Inkreel's line.", "ai"]);
+  });
+
+  it("a new draft clears the matches", () => {
+    const s = flowReducer(drafted(), { type: "setDraft", lines: [line("l1", "Something else.")] });
+    expect(s.match).toBeNull();
+    expect(s.cards).toEqual([]);
+  });
+
+  it("mix isn't built, and a draft can't be set outside Write with Inkreel", () => {
+    expect(run({ type: "chooseMode", mode: "mix" }).step).toBe("start");
+    const own = run({ type: "chooseMode", mode: "own" });
+    expect(flowReducer(own, { type: "setDraft", lines: [line("l1", "x")] }).draft).toEqual([]);
+  });
+
+  it("restores drafts saved before Write with Inkreel existed", () => {
+    const old = { ...initialFlow, text: "Old.", mode: "own" } as Partial<FlowState>;
+    delete old.answers;
+    delete old.draft;
+    delete old.ownText;
+    const s = flowReducer(initialFlow, { type: "restore", state: old as FlowState });
+    expect(s.answers).toEqual({ moment: "", place: "", felt: "", other: "" });
+    expect(s.draft).toEqual([]);
+    expect(s.ownText).toBe("");
   });
 });

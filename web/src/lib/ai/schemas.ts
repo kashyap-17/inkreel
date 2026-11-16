@@ -65,4 +65,28 @@ export const CheckReply = z.object({
 });
 export type CheckReply = z.infer<typeof CheckReply>;
 
+/** The question sections of "Write with Inkreel", in the order they're shown. */
+export const SECTION_KEYS = ["moment", "place", "felt", "other"] as const;
+export type SectionKey = (typeof SECTION_KEYS)[number];
+export type Answers = Record<SectionKey, string>;
+
+const answer = z.string().max(3000);
+export const DraftRequest = z.object({
+  answers: z
+    .object({ moment: answer, place: answer, felt: answer, other: answer })
+    .refine((a) => SECTION_KEYS.some((k) => a[k].trim()), "at least one answer is needed"),
+});
+export type DraftRequest = z.infer<typeof DraftRequest>;
+
+/** One drafted line, the answer it draws on most, and the exact words it draws on (checked in code). */
+export const DraftedLine = z.object({
+  text: z.string().min(1).max(400),
+  section: z.enum([...SECTION_KEYS, "none"]),
+  quote: z.string().max(400),
+});
+export type DraftedLine = z.infer<typeof DraftedLine>;
+
+export const DraftReply = z.object({ lines: z.array(DraftedLine).min(1).max(12), model: z.string() });
+export type DraftReply = z.infer<typeof DraftReply>;
+
 export const ErrorReply = z.object({ error: z.string(), retryAfterSeconds: z.number().optional() });

@@ -29,6 +29,16 @@ export function describeAction(action: FlowAction, at: Date): RecordEvent | null
       return null;
     case "setText":
       return { at: stamp, action: "setText", detail: { characters: action.text.length } };
+    case "setAnswer":
+      return { at: stamp, action: "setAnswer", detail: { section: action.section, characters: action.text.length } };
+    case "setDraft":
+      return {
+        at: stamp,
+        action: "setDraft",
+        detail: { lines: action.lines.length, flagged: action.lines.filter((l) => l.flagged).length },
+      };
+    case "editLine":
+      return { at: stamp, action: "editLine", detail: { lineId: action.lineId, characters: action.text.length } };
     case "setPhotos":
       return {
         at: stamp,
@@ -66,6 +76,10 @@ export function buildTestRecord(
     step: state.step,
     settings: { models: MODELS, promptVersions: PROMPT_VERSIONS, embedDimensions: EMBED_DIMENSIONS },
     writing: {
+      mode: state.mode,
+      /** Write with Inkreel: the answers and the draft's lines (edited ones marked). */
+      answers: state.mode === "help" ? state.answers : null,
+      draft: state.mode === "help" ? state.draft : null,
       text: state.text,
       words: state.words,
       sentences: state.sentences.map((s, i) => ({
