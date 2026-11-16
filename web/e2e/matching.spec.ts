@@ -41,25 +41,20 @@ async function startMatching(page: Page) {
 test("quick matching shows the stages and ends on the matches", async ({ page }) => {
   await fakeServer(page, 1500);
   await startMatching(page);
-  await expect(page.getByText("Reading your writing")).toBeVisible();
+  await expect(page.getByRole("progressbar")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your matches", exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".match-row")).toHaveCount(4);
 });
 
-test("matching by hand while matching runs keeps the user's picks", async ({ page }) => {
+test("a slow search call still ends on the matches, and the bar keeps moving", async ({ page }) => {
   test.setTimeout(90_000);
-  await fakeServer(page, 25_000);
+  await fakeServer(page, 12_000);
   await startMatching(page);
-  const byHand = page.getByRole("button", { name: "Match by hand instead" });
-  await expect(byHand).toBeVisible({ timeout: 20_000 });
-  await byHand.click();
-  await expect(page.getByRole("heading", { name: "Your matches", exact: true })).toBeVisible();
-  await page.locator("ol.cards > li").first().getByRole("button", { name: "Choose a photo" }).click();
-  await page.locator("dialog.sheet button.thumb").first().click();
-  await expect(page.getByText("Chosen by you")).toHaveCount(1);
-
-  // Past the moment the abandoned run would have finished: nothing is replaced.
-  await page.waitForTimeout(15_000);
-  await expect(page.getByText("Chosen by you")).toHaveCount(1);
-  await expect(page.getByText("Matched by Inkreel")).toHaveCount(0);
+  const bar = page.getByRole("progressbar");
+  await expect(bar).toBeVisible();
+  const first = Number(await bar.getAttribute("aria-valuenow"));
+  await page.waitForTimeout(3_000);
+  expect(Number(await bar.getAttribute("aria-valuenow"))).toBeGreaterThan(first);
+  await expect(page.getByText("Reading your writing")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your matches", exact: true })).toBeVisible({ timeout: 30_000 });
 });

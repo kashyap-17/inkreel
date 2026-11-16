@@ -7,8 +7,20 @@ import { logEvent } from "@/lib/store/events";
 import { runMatching, type Stage } from "@/lib/match/run";
 import { StepBar } from "./StepBar";
 
-/** After this long, matching by hand is offered while matching carries on. */
-const OFFER_BY_HAND_AFTER_S = 15;
+/** Expected times, for the progress bar: a batch of 6 photos takes about 0.9 s (two run at once);
+ *  the searches about 4 s; picking the photos about 1 s. */
+const EXPECTED = { perPhotoBatchMs: 900, searchesMs: 4_000, matchMs: 1_000 };
+
+/**
+ * How far along matching is, 0–1. Real steps move it forward; between them it creeps on with
+ * time, slowing as it nears the end, so it never stands still and never reaches the end early.
+ */
+function fraction(p: Progress, elapsedMs: number, expectedMs: number): number {
+  const photos = p.photos.status === "done" ? 1 : p.photos.total ? p.photos.done / p.photos.total : 0;
+  const real = 0.45 * photos + (p.words.status === "done" ? 0.45 : 0);
+  const creeping = 0.92 * (1 - Math.exp((-1.6 * elapsedMs) / expectedMs));
+  return Math.max(real, Math.min(creeping, 0.92));
+}
 
 type Status = "waiting" | "running" | "done";
 
@@ -135,45 +147,49 @@ export function MatchingStep({
       });
   }, [attempt, state, dispatch, onInviteRejected]);
 
-  const seconds = Math.max(0, Math.floor((now - startedAt) / 1000));
+  const elapsed = Math.max(0, now - startedAt);
   const waitLeft = wait ? Math.ceil((wait.until - now) / 1000) : 0;
-  const { photos, words, match } = progress;
+  const { photos, words } = progress;
+  const expected =
+    Math.max((Math.ceil(photos.total / 6) / 2) * EXPECTED.perPhotoBatchMs, EXPECTED.searchesMs) + EXPECTED.matchMs;
+  const done = fraction(progress, elapsed, expected);
+  const secondsLeft = Math.round((expected - elapsed) / 1000);
+  const step =
+    photos.status !== "done"
+      ? `Looking at your photos${photos.total ? ` · ${photos.done} of ${photos.total}` : ""}`
+      : words.status !== "done"
+        ? "Reading your writing"
+        : "Picking the photos that fit";
 
   return (
     <>
       <StepBar current={2} />
       <h1>Finding your matches</h1>
       {!error ? (
-        <>
-          <ol className="card stages" aria-live="polite">
-            <StageRow status={photos.status}>
-              Looking at your photos
-              {photos.total > 0 && photos.status !== "done" && ` · ${photos.done} of ${photos.total}`}
-            </StageRow>
-            <StageRow status={words.status}>
-              {words.status === "done" && words.fellBack
-                ? "Reading your writing · using your lines as they are"
-                : "Reading your writing"}
-            </StageRow>
-            <StageRow status={match}>Picking the photos that fit</StageRow>
-          </ol>
-          <p className="small muted" aria-live="polite">
-            {wait && waitLeft > 0
-              ? `${wait.text}. Trying again in ${waitLeft} s…`
-              : `${seconds} s · usually under 20 seconds`}
+        <div className="card" aria-live="polite">
+          <div
+            className="progress"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(done * 100)}
+            aria-label="Matching"
+          >
+            <div style={{ width: `${Math.round(done * 100)}%` }} />
+          </div>
+          <p className="small">
+            {step}
+            <span className="muted">
+              {" · "}
+              {wait && waitLeft > 0
+                ? `${wait.text}, trying again in ${waitLeft} s`
+                : secondsLeft > 1
+                  ? `about ${secondsLeft} s left`
+                  : "almost there"}
+            </span>
           </p>
-          {seconds >= OFFER_BY_HAND_AFTER_S && (
-            <div className="card next">
-              <p className="small">
-                Taking longer than usual. You can keep waiting, or pick the photos yourself instead.
-              </p>
-              <button type="button" className="secondary small-button" onClick={onMatchByHand}>
-                Match by hand instead
-              </button>
-            </div>
-          )}
           <p className="small muted">Keep this screen open until it’s done.</p>
-        </>
+        </div>
       ) : (
         <>
           <p className="warn">{error}</p>
@@ -197,17 +213,5 @@ export function MatchingStep({
         </>
       )}
     </>
-  );
-}
-
-function StageRow({ status, children }: { status: Status; children: React.ReactNode }) {
-  return (
-    <li className={`stage ${status}`}>
-      <span className="stage-mark" aria-hidden="true">
-        {status === "done" ? "✓" : status === "running" ? "" : "·"}
-      </span>
-      <span>{children}</span>
-      <span className="visually-hidden">{status === "done" ? " (done)" : status === "running" ? " (in progress)" : ""}</span>
-    </li>
   );
 }

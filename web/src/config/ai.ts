@@ -1,10 +1,8 @@
 // Model per call (see "AI model" in docs/decisions.md). Change models here, not in the calls.
 export const MODELS = {
   embed: "gemini-embedding-2",
-  /** Lite first: about 1–2 s. Flash took 25 s or more and hung under load (16 Nov tests). */
+  /** Lite: 1.5–3.5 s. Flash took 25 s or more and hung under load (16 Nov tests). */
   queries: "gemini-3.5-flash-lite",
-  /** Tried once, with a time limit, when Lite stays busy. */
-  queriesFallback: "gemini-3.6-flash",
   check: "gemini-3.5-flash-lite",
 } as const;
 

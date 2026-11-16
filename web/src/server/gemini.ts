@@ -151,32 +151,27 @@ async function generateJson(
   }
 }
 
-/**
- * Time limits for one attempt at writing the searches: Lite normally answers in 1–2 s; Flash,
- * the fallback, gets one longer try. Together they stay inside the route's 60 s.
- */
-const QUERIES_TIMEOUT_MS = { primary: 12_000, fallback: 20_000 };
 /** Checking a batch of photos (Lite, small images) normally takes 3–15 s. */
 const CHECK_TIMEOUT_MS = 40_000;
+
+/**
+ * Writing the searches. Lite normally answers in 1.5–3.5 s, but under load some requests get
+ * "busy" and some hang. So the same request is sent again if there's no answer after 4 s and
+ * 8 s (or straight away after a "busy" answer), and the first good answer wins. After 20 s the
+ * browser searches with the sentences alone, which it does anyway.
+ */
+const QUERIES = { resendAfterMs: [0, 4_000, 8_000], maxAttempts: 4, deadlineMs: 20_000 };
 
 /** Call 2: up to three photo descriptions and time hints for every sentence. */
 export async function searchQueries(req: QueriesRequest): Promise<QueriesReply> {
   const prompt = queriesPrompt(req.sentences, req.tripDays);
   const ids = req.sentences.map((s) => s.id);
+  const model = MODELS.queries;
+  const started = Date.now();
 
-  const attempt = async (model: string, extra = ""): Promise<QueriesReply> => {
-    const primary = model === MODELS.queries;
-    const timeout = primary ? QUERIES_TIMEOUT_MS.primary : QUERIES_TIMEOUT_MS.fallback;
-    // The fallback gets a single try, so the whole call stays inside the route's 60 s.
-    const raw = await generateJson(
-      "queries",
-      model,
-      [{ text: prompt + extra }],
-      QUERIES_SCHEMA,
-      ThinkingLevel.LOW,
-      timeout,
-      primary ? BUSY_TRIES : 1,
-    );
+  const attempt = async (): Promise<QueriesReply> => {
+    const left = QUERIES.deadlineMs - (Date.now() - started);
+    const raw = await generateJson("queries", model, [{ text: prompt }], QUERIES_SCHEMA, ThinkingLevel.LOW, left, 1);
     const parsed = SentenceQuery.array().safeParse((raw as { queries?: unknown })?.queries);
     if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "bad shape");
     const byId = new Map(parsed.data.map((q) => [q.id, q]));
@@ -185,31 +180,48 @@ export async function searchQueries(req: QueriesRequest): Promise<QueriesReply> 
     return { queries: ids.map((id) => byId.get(id)!), model };
   };
 
-  const run = async (model: string) => {
-    try {
-      return await attempt(model);
-    } catch (e) {
-      if (!(e instanceof ValidationError)) throw e;
-      // One retry that tells the model what was wrong.
-      return await attempt(model, `\n\nYour previous reply was invalid (${e.message}). Return every sentence ID.`);
-    }
-  };
-
-  try {
-    return await run(MODELS.queries);
-  } catch (e) {
-    // Lite stayed busy (503), hit its quota (429) or was slow: one try with Flash, then the
-    // browser searches with the sentences themselves. The reply says which model ran.
-    if ((e instanceof ApiError && (e.status === 429 || e.status === 503)) || e instanceof TimeoutError) {
-      try {
-        return await run(MODELS.queriesFallback);
-      } catch (e2) {
-        rethrow(e2);
-      }
-    }
-    if (e instanceof ValidationError) throw new ServerError(502, `Gemini's reply was invalid: ${e.message}`);
-    rethrow(e);
-  }
+  return new Promise<QueriesReply>((resolve, reject) => {
+    let launched = 0;
+    let running = 0;
+    let settled = false;
+    let lastError: unknown = null;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      timers.forEach(clearTimeout);
+      fn();
+    };
+    const fail = () =>
+      finish(() => {
+        if (lastError instanceof ValidationError) reject(new ServerError(502, `Gemini's reply was invalid: ${lastError.message}`));
+        else if (lastError instanceof TimeoutError || !lastError) reject(new ServerError(504, "Gemini didn't answer in time."));
+        else {
+          try {
+            rethrow(lastError);
+          } catch (e) {
+            reject(e);
+          }
+        }
+      });
+    const launch = () => {
+      if (settled || launched >= QUERIES.maxAttempts || Date.now() - started >= QUERIES.deadlineMs - 1_000) return;
+      launched++;
+      running++;
+      attempt().then(
+        (reply) => finish(() => resolve(reply)),
+        (e: unknown) => {
+          running--;
+          lastError = e;
+          // A quick "busy" or a bad reply: try again at once rather than waiting for the next resend.
+          if (e instanceof ApiError || e instanceof ValidationError) launch();
+          if (running === 0 && (launched >= QUERIES.maxAttempts || Date.now() - started >= QUERIES.deadlineMs - 1_000)) fail();
+        },
+      );
+    };
+    for (const after of QUERIES.resendAfterMs) timers.push(setTimeout(launch, after));
+    timers.push(setTimeout(fail, QUERIES.deadlineMs));
+  });
 }
 
 class ValidationError extends Error {}

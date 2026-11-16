@@ -43,7 +43,7 @@ interface SavedQuery {
  * Searches are saved by sentence text, so editing one sentence only re-runs that search.
  * The key carries the search format: searches saved in an older format are not reused.
  */
-const QUERIES_KEY = "queries-v2";
+const QUERIES_KEY = "queries-v3";
 
 /** The check call takes up to three photos per piece of writing. */
 const PHOTOS_PER_CHECK = 3;
@@ -125,7 +125,12 @@ async function sentenceSearches(
       model = reply.model;
       reply.queries.forEach((q, i) => {
         const text = state.sentences[i]!.text;
-        if (!saved[text]) saved[text] = { readings: q.readings, partOfDay: q.partOfDay, day: q.day };
+        // The sentence itself is always one of the searches: on real tests it often matched as
+        // well as the AI's readings, and it keeps a good match if the readings are off.
+        if (!saved[text]) {
+          const readings = [text, ...q.readings.filter((r) => r.trim().toLowerCase() !== text.trim().toLowerCase())];
+          saved[text] = { readings, partOfDay: q.partOfDay, day: q.day };
+        }
       });
     } catch (e) {
       if (e instanceof AiError && e.status === 401) throw e;

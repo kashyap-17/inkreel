@@ -173,6 +173,12 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Why the matches weren't better:** Lite often wrote one reading per line, or put two scenes in one ("many birds flying over a park, a person riding a ferris wheel"), and picked e.g. "Bright moon in the sky" for "trippy lights". Flash or Lite for the searches stays open for the owner, with this as evidence; a clearer instruction to Lite (one scene per reading) is a cheap thing to try.
 - **Changed (must-haves before a pause):** the page checks which build the server runs when it opens or comes back on screen, and reloads itself once when there's a newer one (not during matching; the draft is saved first). Reasons now appear part by part as they arrive, two requests at a time, with "Adding why it fits…" on each waiting photo instead of a banner.
 
+## 16 Nov 2026: search call hanging; progress bar
+
+- **Owner's test:** the search call failed again; the owner noticed the matches (from the plain sentences) still looked good, and asked for a progress bar instead of "taking longer than usual", and no "Match by hand" during matching.
+- **Server log:** a Lite request hung for 12 s, then Flash for 20 s; only quick "busy" answers were being retried.
+- **Changed:** backup requests for the search call (resent at 4 s and 8 s or at once after "busy", first answer wins, 20 s limit, no Flash); the sentence itself is always searched alongside the AI's readings; one progress bar with the current step and time left. Five timed calls afterwards: all answered, 1.8–3.5 s, one after a "busy" answer and an immediate resend.
+
 ## Where things stand (16 Nov 2026)
 
 **Done:** the core loop for "I have writing", end to end and deployed: words with a live photo estimate → photos (working copies, stacks) → consent → matching with reasons → review (swap, move a line, caption only, fewer/more, undo) → preview (change a photo, share, copy). The draft is saved on the device. Tested once on the owner's phone with a real trip.
