@@ -180,3 +180,6 @@ playwright-report/
 
 # macOS folder files
 .DS_Store
+
+# Phone screenshots of test runs (personal photos; kept locally, not in the repo)
+docs/Inkreel screenshots/
