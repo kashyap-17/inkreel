@@ -47,7 +47,7 @@ Still undecided: whether photo embeddings move to an on-phone model, for privacy
 
 ## Running or inspecting the work
 
-**Live app:** LIVE-LINK-PLACEHOLDER
+**Live app:** [inkreel-eight.vercel.app](https://inkreel-eight.vercel.app). It asks for an invite code, which isn't published, so the deployed app can't be used up by visitors. To try Inkreel, run your own copy with your own key (below).
 
 **Inspect without any key.** The browser tests run the whole flow in Chrome with staged server answers; nothing is sent to Gemini.
 

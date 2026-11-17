@@ -48,8 +48,8 @@
 % title block, repository links and references are excluded by the brief and wrapped in
 % TC:ignore. texcount skips the table, so its words are counted separately and added.
 \newcommand{\abstractcount}{274}
-\newcommand{\maincount}{1077}
-\newcommand{\totalcount}{1351}
+\newcommand{\maincount}{1078}
+\newcommand{\totalcount}{1352}
 \newcommand{\repo}{\href{https://github.com/kashyap-17/inkreel}{github.com/kashyap-17/inkreel}}
 \newcommand{\commit}{\texttt{TBD}}
 
@@ -110,7 +110,7 @@ AI-written mode now treats the person's notes as hints, not words to reuse (Sect
 
 \section{Design rationale}
 
-Table~\ref{tab:rationale} lists the main choices, with course concepts by lecture (L01--L12).
+Table~\ref{tab:rationale} lists the main choices.
 
 \begin{table}[H]
 \centering\footnotesize
@@ -148,15 +148,15 @@ known, so a fixed workflow, not an agent, is the simplest system that works (L02
 & Implemented\\
 \textbf{Four labelled thoughts, used as hints:} the AI writes 2--4 lines; named places become
 hashtags.
-& Labels turn recall into recognition (L05,~\cite{norman_design_2013}). Notes reused word
+& Labels turn recall into recognition (L05). Notes reused word
 for word read as a list.
 & I rejected versions 2--8 as reworded answers (Figure~\ref{fig:prompts}).
 & Implemented\\
 \rowcolor{gridline!45}
 \textbf{Provenance per drafted line:} its source thoughts; own words highlighted by code; edit,
 drop, draft again.
-& Ownership rises with the person's influence, and editing restores the most
-control~\cite{draxler_ai_2024}. AI suggestions shift what people
+& Ownership rises with the person's influence over the text~\cite{draxler_ai_2024}. AI
+suggestions shift what people
 write~\cite{jakesch_co-writing_2023}, so the AI adds no facts. A first draft anchors the edit
 (anchoring, L06), so changing it is one tap.
 & On my phone: every line showed its sources (Figure~\ref{fig:sb-write})
@@ -171,13 +171,14 @@ high~\cite{shneiderman_human-centered_2022}.
 \rowcolor{gridline!45}
 \textbf{A wait that keeps moving:} a progress bar with the step and time left; backup requests
 for calls that hang.
-& Response-time limits of about 0.1, 1 and 10~s (L04,~\cite{miller_response_1968}); model calls
+& Response-time limits of about 0.1, 1 and 10~s (L04, after Miller~\cite{miller_response_1968}); model calls
 vary, and the API was often busy (L08).
 & Matching took 10 minutes once, now 8~s
 & Implemented\\
 \textbf{Mix mode; text on images.}
-& Completes A1's authorship range; text on images shows which line goes with which photo.
-& A1 question~\cite{draxler_ai_2024, dhillon_shaping_2024}
+& Completes A1's authorship range, one line at a time: paragraph-sized suggestions lowered
+ownership~\cite{dhillon_shaping_2024}. Text on images shows which line goes with which photo.
+& A1 question
 & Planned\\
 \bottomrule
 \end{tabularx}
