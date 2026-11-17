@@ -231,6 +231,14 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Owner's call:** stay on Lite for drafting. Phone screenshots of the test runs are kept locally in `docs/Inkreel screenshots/` (git-ignored, personal photos): contact names on the share sheet blacked out and strangers' faces pixelated, for later use.
 - **Diagrams brought up to date:** `plan.md` section 2 now draws the flow as built (both ways to start, consent, matching, review, share, with the failure paths), and section 3 adds an architecture diagram: what runs on the phone, on Vercel and at Google, the model behind each call, and the order inside matching (photos embedded directly; the writing goes through the LLM for search phrases first).
 
+## 17 Nov 2026: README for reviewers, licence, project report
+
+- **Asked by the owner:** restructure the README (status, stack, running or inspecting it, development record, AI assistance, additional files), add instructions for running your own copy with your own key, add a licence, and write the project report from the screenshots and diagrams.
+- **Built:** the README in those sections, with a development record that links commits and says whose call each change was; `LICENSE` (MIT with the Commons Clause, the owner's choice over PolyForm Noncommercial); the report's LaTeX source in `acad_docs/project_report/` with a system diagram (implemented, planned, simulated), the flow with its failure paths, and three storyboards. The third storyboard was captured from the app in desktop Chrome with staged server answers and drawn test photos, and is labelled simulated.
+- **Checked:** every claim against this log, `decisions.md` and the code (five storyboard labels and sentences corrected, e.g. a run that took about 20 s had been labelled "8 s"); every reference against its DOI record and abstract (three claims narrowed to what the sources say); the word counts with texcount plus the table counted separately.
+- **Mistake:** a search-and-replace matched a comment instead of a heading and deleted most of the report source; rebuilt from the session and recounted. Work is now committed as it goes.
+- **Kept out of the repo:** the report PDF and its figure images (personal photos).
+
 ## Where things stand (16 Nov 2026)
 
 **Done:** the core loop for "I have writing", end to end and deployed: words with a live photo estimate → photos (working copies, stacks) → consent → matching with reasons → review (swap, move a line, caption only, fewer/more, undo) → preview (change a photo, share, copy). The draft is saved on the device. Tested once on the owner's phone with a real trip. Write with Inkreel (answers → draft traced to them → the same flow) built 16 Nov, not yet tested by the owner.

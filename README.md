@@ -4,7 +4,7 @@
 
 Inkreel turns a camera roll full of photos into posts worth sharing, without losing what made them yours. You write first, in your own words or as a few rough thoughts, and Inkreel finds the photos in your album that go with them, with a short reason for each, then gives you a carousel and caption ready to post.
 
-*README prose: about 900 words (code, commands and tables of commits not counted).*
+*README prose: about 1,880 words, tables included (code, setup commands and commit links not counted).*
 
 ## Project status
 

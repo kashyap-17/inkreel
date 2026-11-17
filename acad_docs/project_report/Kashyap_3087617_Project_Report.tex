@@ -48,10 +48,10 @@
 % title block, repository links and references are excluded by the brief and wrapped in
 % TC:ignore. texcount skips the table, so its words are counted separately and added.
 \newcommand{\abstractcount}{274}
-\newcommand{\maincount}{1078}
-\newcommand{\totalcount}{1352}
+\newcommand{\maincount}{1079}
+\newcommand{\totalcount}{1353}
 \newcommand{\repo}{\href{https://github.com/kashyap-17/inkreel}{github.com/kashyap-17/inkreel}}
-\newcommand{\commit}{\texttt{TBD}}
+\newcommand{\commit}{\href{https://github.com/kashyap-17/inkreel/tree/a2-submission}{tag \texttt{a2-submission}}}
 
 % A storyboard frame: an image cropped to its useful part (trim = left bottom right top, in px),
 % with a number, who acts (P person, S system) and a short label.
@@ -106,13 +106,13 @@ AI-written to entirely the person's own. This phase builds the system that quest
 needs. Three things changed. Photos are no longer grouped into ``moments'': my first real
 album had several good, different shots within 15 minutes, so only near-identical shots are
 stacked. People no longer split their writing; Inkreel does, once the photos are known. And the
-AI-written mode now treats the person's notes as hints, not words to reuse (Section~5).
+AI-written mode now treats the person's notes as hints, not words to reuse (Figure~\ref{fig:prompts}).
 
 \section{Design rationale}
 
 Table~\ref{tab:rationale} lists the main choices.
 
-\begin{table}[H]
+\begin{table}[!tp]
 \centering\footnotesize
 \renewcommand{\arraystretch}{1.18}
 \begin{tabularx}{\textwidth}{@{}L{3.4cm}YL{2.95cm}L{1.75cm}@{}}
@@ -265,7 +265,7 @@ verdict. Version 11 adds each line's sources. All runs: \texttt{web/experiments/
 \section{Compromises and next steps}
 
 Posts are photos with the words in the caption: no text on images or video until real posts show
-the need. Drafts and checks run only on a small, fast model, since larger ones took 15--40~s and
+the need. All three AI jobs run only on a small, fast model, since larger ones took 15~s or more and
 were often busy; it still invents details in some drafts. Testing is qualitative, from my own
 phone tests on a small set of photos, with no metrics yet. The planned study measures match
 quality, ownership and willingness to post across both modes with other people (the A1 question).
