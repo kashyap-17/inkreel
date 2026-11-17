@@ -62,16 +62,16 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 
 ## Folder structure
 - `docs/`: plan, decisions, market notes, devlog (see "Where things go").
-- `web/`: the app. Config files (`package.json`, `tsconfig.json`, `next.config.ts`, `eslint.config.mjs`, `vitest.config.mts`, `.npmrc`, `.nvmrc`) sit here because the tools look for them next to `package.json`.
+- `web/`: the app. Config files (`package.json`, `tsconfig.json`, `next.config.ts`, `eslint.config.mjs`, `vitest.config.mts`, `vitest.experiments.mts`, `playwright.config.ts`, `.npmrc`, `.nvmrc`) sit here because the tools look for them next to `package.json`.
 - `web/e2e/`: browser tests (Playwright) and the sample photos they draw.
 - `web/experiments/`: prompt experiments against real Gemini, with their results (`npm run experiment -- <file>`; never part of `npm run check`). Keep every completed experiment and its output; test prompts on Lite first, Flash only once Lite is half decent.
 - `web/src/app/`: the page, and `api/` routes for the model calls (`embed`, `queries`, `check`, `draft`, `invite`) and the server log (`report` for photo errors, `record` for test records in tester mode).
-- `web/src/components/`: screens (`Flow` holds the steps and saves the draft: start, words, photos, consent, matching, review, preview) and UI pieces.
+- `web/src/components/`: screens (`Flow` holds the steps and saves the draft: start, words or, writing with Inkreel, answers and draft, photos, consent, matching, review, preview) and UI pieces.
 - `web/src/lib/flow/`: the flow as a typed reducer (steps, writing, photos, matches, review edits, undo), with tests.
-- `web/src/lib/words/`: sentence splitting (never changes the words) and the photo estimate, with tests.
+- `web/src/lib/words/`: sentence splitting (never changes the words), the photo estimate, and the checks on drafted lines (own words, names, hashtags), with tests.
 - `web/src/lib/photos/`: browser photo pipeline (EXIF, working copies, hash and sharpness, setting weak photos aside, stacks), with unit tests next to each file (`*.test.ts`).
 - `web/src/lib/match/`: matching in the browser: time hints, chunking (plain code, tested) and the run that calls the server.
-- `web/src/lib/ai/`: request and reply schemas (Zod) shared with the server, and the browser client with retries.
+- `web/src/lib/ai/`: request and reply schemas (Zod) shared with the server, the browser client with retries, and asking for a draft (`drafting.ts`).
 - `web/src/lib/store/`: the draft saved on the device (IndexedDB).
 - `web/src/server/`: the only code that talks to Gemini: calls, invite check, and `prompts/` (one file per call, each versioned in `src/config/ai.ts`).
 - Screens: status and error messages say "the AI", not a vendor; the places that say where data goes (the note before drafting, the consent screen) name Google's Gemini.

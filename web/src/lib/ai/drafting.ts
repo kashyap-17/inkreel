@@ -1,5 +1,5 @@
 // Asks for a draft (Write with Inkreel) and checks its lines in code before they're shown.
-import { AiError, draftLines } from "@/lib/ai/client";
+import { AiError, draftLines } from "./client";
 import { logEvent } from "@/lib/store/events";
 import { checkLines, cleanHashtags, type Answers, type DraftLine } from "@/lib/words/draft";
 

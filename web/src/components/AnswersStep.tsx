@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import type { FlowAction, FlowState } from "@/lib/flow/flow";
 import { filledSections, SECTIONS, type SectionKey } from "@/lib/words/draft";
-import { draftError, requestDraft } from "./drafting";
+import { draftError, requestDraft } from "@/lib/ai/drafting";
 import { DraftingNote } from "./DraftingNote";
 import { StepBar } from "./StepBar";
 
