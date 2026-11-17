@@ -1,11 +1,11 @@
 // Asks for a draft (Write with Inkreel) and checks its lines in code before they're shown.
 import { AiError, draftLines } from "@/lib/ai/client";
 import { logEvent } from "@/lib/store/events";
-import { checkLines, type Answers, type DraftLine } from "@/lib/words/draft";
+import { checkLines, cleanHashtags, type Answers, type DraftLine } from "@/lib/words/draft";
 
-export async function requestDraft(answers: Answers): Promise<DraftLine[]> {
+export async function requestDraft(answers: Answers): Promise<{ lines: DraftLine[]; hashtags: string[] }> {
   const started = Date.now();
-  const { lines, model } = await draftLines({ answers });
+  const { lines, hashtags, model } = await draftLines({ answers });
   const checked = checkLines(answers, lines);
   logEvent({
     at: new Date().toISOString(),
@@ -13,7 +13,7 @@ export async function requestDraft(answers: Answers): Promise<DraftLine[]> {
     detail: { model, ms: Date.now() - started, lines: lines.length, kept: checked.length },
   });
   if (!checked.length) throw new AiError("Inkreel couldn’t draft any lines this time. Try again.", 502);
-  return checked;
+  return { lines: checked, hashtags: cleanHashtags(hashtags) };
 }
 
 /** What to show when drafting fails; null when the invite code was turned down (handled elsewhere). */

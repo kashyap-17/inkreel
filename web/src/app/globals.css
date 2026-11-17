@@ -911,3 +911,28 @@ mark.mine {
 .legend {
   margin: 4px 0 0;
 }
+
+.hashtags {
+  margin: 12px 0 4px;
+}
+
+.hashtags ul {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0;
+  gap: 6px;
+}
+
+.hashtags .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.9rem;
+  padding: 2px 4px 2px 10px;
+}
+
+.hashtags .tag button {
+  padding: 0 6px;
+  font-size: 1rem;
+  line-height: 1;
+}

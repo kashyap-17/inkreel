@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkLines, draftText, findQuote, ownWords, statesFeeling, unknownNames, type Answers } from "./draft";
+import { checkLines, cleanHashtags, draftText, findQuote, ownWords, statesFeeling, unknownNames, type Answers } from "./draft";
 
 const ANSWERS: Answers = {
   moment: "We got lost in the old market at dusk and didn't mind.",
@@ -115,5 +115,16 @@ describe("statesFeeling", () => {
     for (const line of ["breathing in the calm.", "full and happy.", "feeling small in a good way up there,", "Hyde Park, dreamy in the blue"]) {
       expect(statesFeeling(line)).toBe(false);
     }
+  });
+});
+
+describe("cleanHashtags", () => {
+  it("adds the #, drops spaces and punctuation, repeats and empties, and keeps at most four", () => {
+    expect(cleanHashtags(["HydePark", "#Camden", "Hyde Park", "#St. Ives", "#", "hydepark", "#A", "#B", "#C"])).toEqual([
+      "#HydePark",
+      "#Camden",
+      "#StIves",
+      "#A",
+    ]);
   });
 });

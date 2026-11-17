@@ -64,6 +64,7 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 - `docs/`: plan, decisions, market notes, devlog (see "Where things go").
 - `web/`: the app. Config files (`package.json`, `tsconfig.json`, `next.config.ts`, `eslint.config.mjs`, `vitest.config.mts`, `.npmrc`, `.nvmrc`) sit here because the tools look for them next to `package.json`.
 - `web/e2e/`: browser tests (Playwright) and the sample photos they draw.
+- `web/experiments/`: prompt experiments against real Gemini, with their results (`npm run experiment -- <file>`; never part of `npm run check`). Keep every completed experiment and its output; test prompts on Lite first, Flash only once Lite is half decent.
 - `web/src/app/`: the page, and `api/` routes for the model calls (`embed`, `queries`, `check`, `draft`, `invite`) and the server log (`report` for photo errors, `record` for test records in tester mode).
 - `web/src/components/`: screens (`Flow` holds the steps and saves the draft: start, words, photos, consent, matching, review, preview) and UI pieces.
 - `web/src/lib/flow/`: the flow as a typed reducer (steps, writing, photos, matches, review edits, undo), with tests.

@@ -161,6 +161,19 @@ export function ownWords(line: string, answers: Answers): { text: string; mine: 
   return parts;
 }
 
+/** Hashtags as Instagram needs them: "#", letters and digits only, no repeats, at most four. */
+export function cleanHashtags(tags: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const tag of tags) {
+    const body = tag.replace(/[^\p{L}\p{N}_]/gu, "");
+    if (!body || seen.has(body.toLowerCase())) continue;
+    seen.add(body.toLowerCase());
+    out.push(`#${body}`);
+  }
+  return out.slice(0, 4);
+}
+
 /** The writing the rest of the flow uses: one line of the draft per line. */
 export const draftText = (lines: Pick<DraftLine, "text">[]): string =>
   lines

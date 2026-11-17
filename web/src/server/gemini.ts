@@ -11,7 +11,7 @@ import {
   type DraftRequest,
   type QueriesRequest,
 } from "@/lib/ai/schemas";
-import { statesFeeling } from "@/lib/words/draft";
+import { cleanHashtags, statesFeeling } from "@/lib/words/draft";
 import { CHECK_SCHEMA, CHECK_TASK, DRAFT_SCHEMA, draftPrompt, QUERIES_SCHEMA, queriesPrompt } from "./prompts";
 
 let client: GoogleGenAI | null = null;
@@ -272,18 +272,32 @@ export async function checkMatches(req: CheckRequest): Promise<CheckReply> {
 }
 
 /**
- * Call 4: a few short lines from the person's answers, each with the answer it draws on and the
- * exact words. Warmer than the other calls, so "Draft again" gives a different draft.
+ * Call 4: a short post from the person's answers, taken as hints (prompt draft-v10), and named
+ * places as hashtags. Warmer than the other calls, so "Draft again" gives a different draft.
  */
 export async function writeDraft(req: DraftRequest): Promise<DraftReply> {
   const prompt = draftPrompt(req.answers);
   const ask = () =>
     firstAnswer(DRAFT, async (msLeft, index) => {
       const model = draftModel(index);
-      const raw = await generateJson("draft", model, [{ text: prompt }], DRAFT_SCHEMA, ThinkingLevel.LOW, msLeft, 1, 0.9);
-      const parsed = DraftedLine.array().min(1).max(12).safeParse((raw as { lines?: unknown })?.lines);
+      const raw = (await generateJson("draft", model, [{ text: prompt }], DRAFT_SCHEMA, ThinkingLevel.LOW, msLeft, 1, 1)) as {
+        lines?: unknown;
+        hashtags?: unknown;
+      };
+      const texts = Array.isArray(raw?.lines) ? raw.lines.filter((t): t is string => typeof t === "string") : [];
+      // Which of the person's words a line uses is found in code (checkLines), not asked of the model.
+      const parsed = DraftedLine.array()
+        .min(1)
+        .max(12)
+        .safeParse(
+          texts
+            .map((t) => t.trim())
+            .filter(Boolean)
+            .map((text) => ({ text, section: "none", quote: "" })),
+        );
       if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "bad shape");
-      return { lines: parsed.data, model };
+      const tags = Array.isArray(raw?.hashtags) ? raw.hashtags.filter((t): t is string => typeof t === "string") : [];
+      return { lines: parsed.data, hashtags: cleanHashtags(tags), model };
     });
   const started = Date.now();
   const first = await ask();

@@ -23,7 +23,7 @@ async function fakeDraft(page: Page, sent: unknown[], status = 200) {
       return;
     }
     await new Promise((r) => setTimeout(r, 300));
-    await route.fulfill({ json: { model: "test", lines: DRAFTED } });
+    await route.fulfill({ json: { model: "test", lines: DRAFTED, hashtags: ["#OldMarket", "#Lisbon"] } });
   });
 }
 
@@ -80,12 +80,16 @@ test("from answers to a draft traced to them, then on to a post by hand", async 
   await expect(page.getByText("words are yours.")).toBeVisible();
   await expect(lines.nth(0).getByText("Check this line")).toHaveCount(0);
   // A quote that isn't in the answers is dropped.
-  // A line in Inkreel's own words says so.
-  await expect(lines.nth(1)).toContainText("In Inkreel’s words");
+  // A line in Inkreel's own words has no source line (the draft is labelled as a whole).
   await expect(lines.nth(1)).not.toContainText("Check this line");
   await expect(lines.nth(1)).not.toContainText("From your answer");
   // A name the person never gave is flagged.
   await expect(lines.nth(2)).toContainText("“Maria” isn’t in your answers.");
+
+  // Hashtags for named places, removable.
+  await expect(page.locator(".hashtags .tag")).toHaveText(["#OldMarket×", "#Lisbon×"]);
+  await page.getByRole("button", { name: "Remove #Lisbon" }).click();
+  await expect(page.locator(".hashtags .tag")).toHaveText(["#OldMarket×"]);
 
   // Edit a line in place, drop another.
   await lines.nth(2).getByRole("button", { name: "Edit" }).click();
@@ -122,7 +126,7 @@ test("from answers to a draft traced to them, then on to a post by hand", async 
   }
   await page.getByRole("button", { name: "Next: preview" }).click();
   await expect(page.locator("p.caption")).toHaveText(
-    "Lost in the old market at dusk\nSomeone waited by the blue door\nAnd we didn't mind at all",
+    "Lost in the old market at dusk\nSomeone waited by the blue door\nAnd we didn't mind at all\n\n#OldMarket",
     { useInnerText: true },
   );
 });
@@ -214,7 +218,7 @@ test("the draft and answers survive a reload", async ({ page }) => {
   await expect(page.getByLabel("A place or thing that stands out")).toHaveValue(PLACE);
 });
 
-test("live: Gemini drafts lines traced to the answers", async ({ page }) => {
+test("live: Gemini drafts a post from the answers, taken as hints", async ({ page }) => {
   test.skip(process.env.E2E_LIVE !== "1", "Set E2E_LIVE=1 to draft with Gemini.");
   test.setTimeout(120_000);
   await startWriting(page);
@@ -227,8 +231,11 @@ test("live: Gemini drafts lines traced to the answers", async ({ page }) => {
   const count = await lines.count();
   expect(count).toBeGreaterThanOrEqual(2);
   expect(count).toBeLessThanOrEqual(8);
-  // Most lines should trace back to the answers.
-  expect(await lines.filter({ hasText: "From your answer" }).count()).toBeGreaterThanOrEqual(Math.ceil(count / 2));
+  // Answers are hints: no line is a whole answer copied, and none just states the feeling.
+  const texts = await lines.locator(".line-text").allInnerTexts();
+  for (const text of texts) expect(text).not.toMatch(/^(it|i) felt\b/i);
+  const plain = (t: string) => t.toLowerCase().replace(/[^a-z' ]/g, "").trim();
+  expect(texts.map(plain)).not.toContain(plain(MOMENT));
   console.log("LIVE DRAFT\n" + (await lines.locator(".line-text").allInnerTexts()).join("\n"));
-  console.log("SOURCES\n" + (await lines.locator(".source").allInnerTexts()).join("\n"));
+  console.log("HASHTAGS " + (await page.locator(".hashtags .tag").allInnerTexts()).join(" "));
 });

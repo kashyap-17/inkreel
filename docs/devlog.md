@@ -217,6 +217,16 @@ Meaningful AI use during the build: what was asked, what was decided, what chang
 - **Owner's second test (v6):** a list, one line per answer; then, on a second look, three of the four lines good and only "by the beautiful lake in Hyde Park" bad. v7 (hints, whole caption) was worse on Lite and was dropped; v8 adds one rule to v6 (no line for a place on its own) and ties the place into the thread. Lines without the person's words now say "In Inkreel's words" instead of a warning. A check for lines made only of the feeling answer was tried and dropped: it caught good lines ("tired but laughing the whole way").
 - **Collected for later (owner):** when the post uses every uploaded photo, skip the AI matching and go straight to the post (proposal pending).
 
+## 17 Nov 2026: drafts as posts, not reworded answers
+
+- **Owner's third test (v8, Lite):** answers came back as lines again ("Bus rides under blue skies / by Hyde Park and a beautiful lake / …"). Agreed to wait for Flash.
+- **Flash in the morning:** 3.6, 3.5 and 3.7 Flash answered "high demand" or not at all (1 answer in about 30 requests); 2.5 Flash is retired. The one answer was still the answers reworded. The owner: that can't be an Instagram caption.
+- **New direction (owner):** treat the answers as hints and write a post that captures them; named places as hashtags; stop stuffing in the person's words. Test on Lite first, and only a few Flash requests once Lite is half decent.
+- **v9, v10 on Lite:** v9 read as posts for the first time but invented small facts; v10 fixed that, kept non-place details in the lines, and fixed capitals and "#". Owner: "this looks good now". Details in `decisions.md` ("New direction"), outputs in `web/experiments/drafts/results/`.
+- **Experiments kept:** the owner asked that completed experiments aren't deleted. Scripts, answer sets and results now live in `web/experiments/` (run with `npm run experiment -- <file>`, never part of `npm run check`). Yesterday's throwaway scripts had been deleted after each run; their outputs survive only in this log and `decisions.md`.
+- **v10 on 3.6 Flash:** 3 requests, no draft (busy, a timeout, a 429). I first called the 429 the daily quota running out; the owner questioned it, and one more request got "busy", not 429, so it was most likely the per-minute limit. Under ~17 Flash requests today against ~20 a day. Flash is overloaded, not used up.
+- **v10 in the app (owner: go ahead with Lite):** the model returns lines and hashtags; hashtags removable on the draft screen and added at the end of the caption, never matched to photos; "From your answer" only where the person's words survive. Checked: 113 unit tests, 15 browser tests, one real draft through the app ("Dusk in the old market and the map stopped making sense. / A blue door waiting past the spice stall. / Nowhere else to be.").
+
 ## Where things stand (16 Nov 2026)
 
 **Done:** the core loop for "I have writing", end to end and deployed: words with a live photo estimate → photos (working copies, stacks) → consent → matching with reasons → review (swap, move a line, caption only, fewer/more, undo) → preview (change a photo, share, copy). The draft is saved on the device. Tested once on the owner's phone with a real trip. Write with Inkreel (answers → draft traced to them → the same flow) built 16 Nov, not yet tested by the owner.

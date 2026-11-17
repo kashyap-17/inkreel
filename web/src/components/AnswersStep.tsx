@@ -45,7 +45,7 @@ export function AnswersStep({
     setBusy(true);
     setError(null);
     try {
-      dispatch({ type: "setDraft", lines: await requestDraft(state.answers) });
+      dispatch({ type: "setDraft", ...(await requestDraft(state.answers)) });
     } catch (e) {
       setError(draftError(e, onInviteRejected));
     } finally {

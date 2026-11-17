@@ -20,7 +20,7 @@ export const MODELS = {
 export const DRAFT_FLASH_FIRST = false;
 
 /** Prompt versions (prompts in src/server/prompts.ts). Bump on every prompt change. */
-export const PROMPT_VERSIONS = { queries: "queries-v3", check: "check-v4", draft: "draft-v8" } as const;
+export const PROMPT_VERSIONS = { queries: "queries-v3", check: "check-v4", draft: "draft-v10" } as const;
 
 export const EMBED_DIMENSIONS = 768;
 

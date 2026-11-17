@@ -86,7 +86,12 @@ export const DraftedLine = z.object({
 });
 export type DraftedLine = z.infer<typeof DraftedLine>;
 
-export const DraftReply = z.object({ lines: z.array(DraftedLine).min(1).max(12), model: z.string() });
+export const DraftReply = z.object({
+  lines: z.array(DraftedLine).min(1).max(12),
+  /** Named places, as hashtags for the end of the caption ("#HydePark"). */
+  hashtags: z.array(z.string().max(60)).max(6).default([]),
+  model: z.string(),
+});
 export type DraftReply = z.infer<typeof DraftReply>;
 
 export const ErrorReply = z.object({ error: z.string(), retryAfterSeconds: z.number().optional() });

@@ -85,6 +85,8 @@ export interface FlowState {
   /** Write with Inkreel: the user's answers, and the lines drafted from them. */
   answers: Answers;
   draft: DraftLine[];
+  /** Named places from the draft, as hashtags for the end of the caption ("#HydePark"). */
+  hashtags: string[];
   sentences: Sentence[];
   words: number;
   /** Prepared photos in capture order: the ones matching chooses from. */
@@ -107,7 +109,8 @@ export type FlowAction =
   | { type: "setText"; text: string }
   | { type: "setAnswer"; section: SectionKey; text: string }
   /** A new draft from the answers; it becomes the writing. */
-  | { type: "setDraft"; lines: DraftLine[] }
+  | { type: "setDraft"; lines: DraftLine[]; hashtags?: string[] }
+  | { type: "dropHashtag"; tag: string }
   | { type: "editLine"; lineId: string; text: string }
   | { type: "dropLine"; lineId: string }
   | { type: "goTo"; step: Step }
@@ -132,6 +135,7 @@ export const initialFlow: FlowState = {
   ownText: "",
   answers: emptyAnswers(),
   draft: [],
+  hashtags: [],
   sentences: [],
   words: 0,
   photos: [],
@@ -229,6 +233,7 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
         // Drafts saved before Write with Inkreel have no answers or draft.
         answers: { ...emptyAnswers(), ...action.state.answers },
         draft: action.state.draft ?? [],
+        hashtags: action.state.hashtags ?? [],
         ownText: action.state.ownText ?? "",
         cards: (action.state.cards ?? []).map((c) => ({ ...c, extras: c.extras ?? [] })),
         history: (action.state.history ?? []).map((cards) => cards.map((c) => ({ ...c, extras: c.extras ?? [] }))),
@@ -258,7 +263,13 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
 
     case "setDraft":
       if (state.mode !== "help" || action.lines.length === 0) return state;
-      return { ...withText({ ...state, draft: action.lines }, draftText(action.lines)), step: "draft" };
+      return {
+        ...withText({ ...state, draft: action.lines, hashtags: action.hashtags ?? [] }, draftText(action.lines)),
+        step: "draft",
+      };
+
+    case "dropHashtag":
+      return { ...state, hashtags: state.hashtags.filter((t) => t !== action.tag) };
 
     case "editLine": {
       const text = action.text.replace(/\s+/g, " ").trim();
@@ -613,4 +624,14 @@ export function captionOf(state: Pick<FlowState, "text" | "sentences">): string 
   const first = state.sentences[0];
   const last = state.sentences[state.sentences.length - 1];
   return first && last ? state.text.slice(first.start, last.end) : "";
+}
+
+/**
+ * What goes in Instagram's caption box: the writing, then (writing with Inkreel) the draft's
+ * hashtags on a line of their own. Hashtags are never matched to photos.
+ */
+export function postCaption(state: Pick<FlowState, "text" | "sentences" | "mode" | "hashtags">): string {
+  const words = captionOf(state);
+  const tags = state.mode === "help" ? state.hashtags : [];
+  return tags.length && words ? `${words}\n\n${tags.join(" ")}` : words;
 }

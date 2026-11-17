@@ -4,6 +4,7 @@ import type { DraftLine } from "@/lib/words/draft";
 import {
   canGoTo,
   captionOf,
+  postCaption,
   cardPhotoIds,
   cardText,
   defaultTarget,
@@ -381,6 +382,25 @@ describe("write with Inkreel", () => {
     expect([s.step, s.text, s.sentences[0]!.source]).toEqual(["draft", "Inkreel's line.", "ai"]);
   });
 
+  it("hashtags go at the end of the caption, only when writing with Inkreel, and can be dropped", () => {
+    let s = flowReducer(drafted(), {
+      type: "setDraft",
+      lines: [line("l1", "Blue skies over the lake.")],
+      hashtags: ["#HydePark", "#Camden"],
+    });
+    expect(postCaption(s)).toBe("Blue skies over the lake.\n\n#HydePark #Camden");
+    // Hashtags are not part of the writing, so they're never matched to photos.
+    expect(s.sentences.map((x) => x.text)).toEqual(["Blue skies over the lake."]);
+    s = flowReducer(s, { type: "dropHashtag", tag: "#Camden" });
+    expect(postCaption(s)).toBe("Blue skies over the lake.\n\n#HydePark");
+    // A new draft brings its own hashtags (none here).
+    expect(flowReducer(s, { type: "setDraft", lines: [line("l1", "Other.")] }).hashtags).toEqual([]);
+    // Own writing never gets them.
+    s = flowReducer(s, { type: "chooseMode", mode: "own" });
+    s = flowReducer(s, { type: "setText", text: "Mine." });
+    expect(postCaption(s)).toBe("Mine.");
+  });
+
   it("a new draft clears the matches", () => {
     const s = flowReducer(drafted(), { type: "setDraft", lines: [line("l1", "Something else.")] });
     expect(s.match).toBeNull();
@@ -398,9 +418,11 @@ describe("write with Inkreel", () => {
     delete old.answers;
     delete old.draft;
     delete old.ownText;
+    delete old.hashtags;
     const s = flowReducer(initialFlow, { type: "restore", state: old as FlowState });
     expect(s.answers).toEqual({ moment: "", place: "", felt: "", other: "" });
     expect(s.draft).toEqual([]);
     expect(s.ownText).toBe("");
+    expect(s.hashtags).toEqual([]);
   });
 });

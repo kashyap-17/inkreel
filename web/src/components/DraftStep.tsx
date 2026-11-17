@@ -30,13 +30,15 @@ export function DraftStep({
     setBusy(true);
     setError(null);
     try {
-      dispatch({ type: "setDraft", lines: await requestDraft(state.answers) });
+      dispatch({ type: "setDraft", ...(await requestDraft(state.answers)) });
     } catch (e) {
       setError(draftError(e, onInviteRejected));
     } finally {
       setBusy(false);
     }
   }
+
+  const hasOwnWords = state.draft.some((l) => ownWords(l.text, state.answers).some((p) => p.mine));
 
   return (
     <>
@@ -50,12 +52,32 @@ export function DraftStep({
           <LineItem key={line.id} line={line} answers={state.answers} dispatch={dispatch} />
         ))}
       </ol>
-      {state.draft.length === 0 ? (
-        <p className="muted">No lines left. Draft again, or change your answers.</p>
-      ) : (
+      {state.draft.length === 0 && <p className="muted">No lines left. Draft again, or change your answers.</p>}
+      {hasOwnWords && (
         <p className="small muted legend">
           <mark className="mine">Highlighted</mark> words are yours.
         </p>
+      )}
+
+      {state.hashtags.length > 0 && (
+        <div className="hashtags">
+          <p className="small muted">Hashtags, added at the end of your caption:</p>
+          <ul className="row">
+            {state.hashtags.map((tag) => (
+              <li key={tag} className="tag">
+                {tag}
+                <button
+                  type="button"
+                  className="link"
+                  aria-label={`Remove ${tag}`}
+                  onClick={() => dispatch({ type: "dropHashtag", tag })}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       {error && <p className="warn">{error}</p>}
       {busy && <DraftingNote />}
@@ -143,12 +165,9 @@ function LineItem({
       <div className="small">
         {line.edited && <span className="label you">Edited by you</span>}
         {line.flagged && <span className="label weak">Check this line</span>}
-        {!line.edited &&
-          (line.quote ? (
-            <p className="muted source">From your answer: “{line.quote}”</p>
-          ) : (
-            <p className="muted source">In Inkreel’s words</p>
-          ))}
+        {/* Most lines are in Inkreel's words (the draft is labelled as a whole); a line that keeps the
+            person's own words says which. */}
+        {!line.edited && line.quote && <p className="muted source">From your answer: “{line.quote}”</p>}
         {names.length > 0 && (
           <p className="muted source">
             {names.map((n) => `“${n}”`).join(", ")} {names.length === 1 ? "isn’t" : "aren’t"} in your answers.

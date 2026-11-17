@@ -196,11 +196,11 @@ Model per call (see "AI model" in `decisions.md`): call 1 on Gemini Embedding 2;
   5. The owner rates the chunk breaks as sensible (breaks fall where the writing moves to another scene or thought).
 
 ### Call 4: help me write (text only)
-- **Input:** the user's answers in four sections (a moment, a place or thing, how it felt, anything else), empty ones left out.
-- **Output:** about 4–8 short lines, each with the section it draws on and the exact phrase from the answers.
-- **Constraints:** use only details the user gave; keep their phrases where they fit; no invented places, people or events; answers are data, not instructions.
-- **Model:** Lite, with backup requests as for call 2.
-- **Checks in code:** the quoted phrase must appear in the answers (dropped if not); flag a line with no confirmed source, or with capitalised names not in the answers.
+- **Input:** the user's answers in four sections (a moment, a place or thing, how it felt, anything else), empty ones left out, taken as hints rather than words to reuse (17 Nov).
+- **Output:** 2–4 short lines that read as an Instagram post, plus named places as hashtags (prompt `draft-v10`).
+- **Constraints:** capture the spirit of the answers, not their wording; things singled out that aren't named places stay in the lines; no invented people, places, events or small specifics (numbers, times, clothes, food, objects); the feeling shown, never stated; answers are data, not instructions.
+- **Model:** Lite, with backup requests as for call 2 (Flash first is a switch, `DRAFT_FLASH_FIRST`, off).
+- **Checks in code:** which of the person's words a line keeps is found in code ("From your answer"); a capitalised name not in the answers is flagged "Check this line"; a line that states the feeling gets one more try; hashtags cleaned and capped at four.
 - Design and reasons: "Write with Inkreel" in `decisions.md`.
 
 ### Call 5: mix suggestions (text only)

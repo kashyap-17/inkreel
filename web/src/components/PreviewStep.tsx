@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { APP_NAME } from "@/config/app";
-import { captionOf, slidesOf, type FlowAction, type FlowState } from "@/lib/flow/flow";
+import { postCaption, slidesOf, type FlowAction, type FlowState } from "@/lib/flow/flow";
 import { getPhoto } from "@/lib/store/db";
 import { logEvent } from "@/lib/store/events";
 import { Photo } from "./Photo";
@@ -19,7 +19,7 @@ export function PreviewStep({ state, dispatch }: { state: FlowState; dispatch: (
   const postSlides = slidesOf(state);
   const slides = postSlides.map((slide) => slide.photoId);
   const swapCard = state.cards.find((c) => c.id === swapping?.cardId);
-  const caption = captionOf(state);
+  const caption = postCaption(state);
   const tooMany = slides.length > MAX_SLIDES;
   const tooLong = caption.length > MAX_CAPTION;
   const slideKey = slides.join(",");

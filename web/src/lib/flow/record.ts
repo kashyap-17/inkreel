@@ -4,7 +4,7 @@ import { APP_NAME } from "@/config/app";
 import { EMBED_DIMENSIONS, MODELS, PROMPT_VERSIONS } from "@/config/ai";
 import { displayClock } from "@/lib/photos/format";
 import { photoIssue } from "@/lib/photos/quality";
-import { cardText, captionOf, verdictKey, type FlowAction, type FlowState } from "./flow";
+import { cardText, postCaption, verdictKey, type FlowAction, type FlowState } from "./flow";
 
 export const RECORD_VERSION = 1;
 
@@ -35,7 +35,11 @@ export function describeAction(action: FlowAction, at: Date): RecordEvent | null
       return {
         at: stamp,
         action: "setDraft",
-        detail: { lines: action.lines.length, flagged: action.lines.filter((l) => l.flagged).length },
+        detail: {
+          lines: action.lines.length,
+          flagged: action.lines.filter((l) => l.flagged).length,
+          hashtags: action.hashtags?.length ?? 0,
+        },
       };
     case "editLine":
       return { at: stamp, action: "editLine", detail: { lineId: action.lineId, characters: action.text.length } };
@@ -80,6 +84,7 @@ export function buildTestRecord(
       /** Write with Inkreel: the answers and the draft's lines (edited ones marked). */
       answers: state.mode === "help" ? state.answers : null,
       draft: state.mode === "help" ? state.draft : null,
+      hashtags: state.mode === "help" ? state.hashtags : null,
       text: state.text,
       words: state.words,
       sentences: state.sentences.map((s, i) => ({
@@ -132,7 +137,7 @@ export function buildTestRecord(
       text: cardText(state, c),
       verdict: c.photoId && match ? (match.verdicts[verdictKey(c.sentenceIds, c.photoId)] ?? null) : null,
     })),
-    caption: state.cards.length ? captionOf(state) : null,
+    caption: state.cards.length ? postCaption(state) : null,
     undoSteps: state.history.length,
     events: extras.events,
   };
