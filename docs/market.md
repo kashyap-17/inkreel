@@ -24,9 +24,9 @@ People tell trip stories in two ways: photo-first (each photo prompts the story)
 | Starts from | Photos | The user's words |
 | User's words | Polished or rewritten by AI | Kept exactly as written ("I have writing" mode) |
 | AI-written text | Not marked, as far as the site says | Always marked |
-| Photos | Attached to the story by the user | Grouped into moments; Inkreel proposes a moment for each piece of writing |
+| Photos | Attached to the story by the user | Inkreel proposes a photo for each part of the writing from the whole album; near-identical shots are stacked so a post never repeats one |
 | Explains its choices | Not stated | A one-line reason for every match, and every match can be swapped |
-| How much the AI writes | One level (AI shapes the story) | Three modes: none, suggestions accepted one by one, or AI writes from your answers |
+| How much the AI writes | One level (AI shapes the story) | None (your writing as is), or AI drafts from your thoughts with each line's source shown; suggestions accepted one by one are planned |
 | Output | A journal story to share | A carousel and caption ready for Instagram |
 
 **What Journiary does that's worth learning from:** speaking memories instead of typing (a possible input for "help me write" later); a short, plain privacy policy; free with no account friction. Inviting friends to add memories is outside our scope.
