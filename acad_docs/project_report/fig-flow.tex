@@ -1,0 +1,89 @@
+% Figure 2: the flow as built, with failure paths (red) and the person's changes (blue).
+\begin{figure}[p]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\scriptsize,
+  st/.style={draw=inkmuted, rounded corners=2pt, fill=white, text width=3.3cm, align=center, inner sep=3pt, minimum height=0.6cm},
+  code/.style={st, fill=gridline!70},
+  ai/.style={st, draw=accent, thick},
+  dec/.style={st, fill=warm!14},
+  fail/.style={draw=failred, rounded corners=2pt, fill=failred!5, text width=3.6cm, align=left, inner sep=3pt, font=\sffamily\tiny},
+  user/.style={draw=accent!70, rounded corners=2pt, fill=accent!6, text width=2.9cm, align=left, inner sep=3pt, font=\sffamily\tiny},
+  arr/.style={-{Stealth[length=1.6mm]}, inkmuted, thick},
+  farr/.style={-{Stealth[length=1.6mm]}, failred, densely dotted, thick},
+  uarr/.style={-{Stealth[length=1.6mm]}, accent, dashed, thick},
+  tag/.style={font=\sffamily\tiny, fill=white, inner sep=1pt},
+]
+% main path
+\node[st]   (start) at (0,0)       {Start: invite code, once per device};
+\node[st]   (own)   at (-2.3,-1.1) {I have writing: paste or type};
+\node[st]   (th)    at (2.3,-1.1)  {Write with Inkreel: four labelled thoughts};
+\node[ai]   (draft) at (2.3,-2.2)  {Draft: lines from the thoughts as hints; places as hashtags};
+\node[code] (lines) at (2.3,-3.35) {Your lines: sources shown, own words highlighted};
+\node[code] (sent)  at (0,-4.6)    {Writing split into sentences, each marked yours or Inkreel's};
+\node[st]   (add)   at (0,-5.75)   {Add photos};
+\node[code] (prep)  at (0,-6.85)   {Prepare on the phone: copy, read times, set weak photos aside, stack};
+\node[dec]  (cons)  at (0,-8.0)    {Consent: send small copies?};
+\node[ai]   (idx)   at (-2.0,-9.1) {Index photos (embeddings)};
+\node[ai]   (q)     at (2.0,-9.1)  {Search phrases per line (LLM, then embedded)};
+\node[code] (match) at (0,-10.3)   {Match and split, in code; one photo per stack};
+\node[ai]   (chk)   at (0,-11.4)   {Check each match and write its reason (LLM)};
+\node[dec]  (rev)   at (0,-12.55)  {Review: swap, add, remove, move a line, fewer or more, undo};
+\node[st]   (prev)  at (0,-13.7)   {Preview: carousel and caption};
+\node[dec]  (share) at (0,-14.75)  {Share; caption copied};
+\node[st, text width=1.9cm] (hand) at (-5.6,-8.0) {Match by hand};
+
+\draw[arr] (start) -- (own);
+\draw[arr] (start) -- (th);
+\draw[arr] (th) -- (draft);
+\draw[arr] (draft) -- (lines);
+\draw[arr] (own) |- (sent);
+\draw[arr] (lines) |- (sent);
+\draw[arr] (sent) -- (add);
+\draw[arr] (add) -- (prep);
+\draw[arr] (prep) -- (cons);
+\draw[arr] (cons) -- node[tag] {yes} (idx);
+\draw[arr] (cons) -- (q);
+\draw[arr] (idx) -- (match);
+\draw[arr] (q) -- (match);
+\draw[arr] (match) -- (chk);
+\draw[arr] (chk) -- (rev);
+\draw[arr] (rev) -- (prev);
+\draw[arr] (prev) -- (share);
+\draw[arr] (cons.west) -- node[tag] {no} (hand.east);
+\draw[arr] (hand.south) |- (rev.west);
+
+% failure paths (right)
+\node[fail] (f0) at (6.4,0)      {invite code turned down later: back to the start, work kept};
+\node[fail] (f1) at (6.4,-2.2)   {busy or no answer: backups at 6 and 12~s, then a plain message; thoughts kept};
+\node[fail] (f2) at (6.4,-6.85)  {phone withdraws file access: copies made at pick time; a photo that can't be opened is left out and reported};
+\node[fail] (f3) at (6.4,-9.1)   {no answer: backups at 4 and 8~s; after 20~s the line itself is the search};
+\node[fail] (f4) at (-3.55,-10.4)  {hangs: backups at 5 and 10~s; matching goes on with the photos indexed};
+\node[fail] (f5) at (6.4,-11.4)  {slow: matches open at 15~s, reasons follow. Doesn't fit: next alternative, else ``No strong match''};
+\draw[farr] (start.east) -- (f0.west);
+\draw[farr] (draft.east) -- (f1.west);
+\draw[farr] (prep.east) -- (f2.west);
+\draw[farr] (q.east) -- (f3.west);
+\draw[farr] ([xshift=-0.6cm]idx.south) -- ([xshift=-0.6cm]idx.south |- f4.north);
+\draw[farr] (chk.east) -- (f5.west);
+
+% the person's changes
+\node[user] (u1) at (6.4,-3.6)   {change my answers; draft again; edit or drop a line};
+\node[user] (u2) at (-4.6,-14.2) {fewer or more photos: split again in code; photos added: stack and match again};
+\node[user] (u3) at (6.4,-13.7)  {tap a slide to change its photo};
+\draw[uarr] (u1.west) -- (lines.east);
+\draw[uarr] (u2.north east) -- (rev.south west);
+\draw[uarr] (u3.west) -- (prev.east);
+
+% legend
+\node[anchor=north west, font=\sffamily\tiny, align=left] at (-6.9,-1.0) {%
+  \tikz\draw[accent, thick] (0,0) rectangle (0.4,0.2); AI call\\[2pt]
+  \tikz\draw[inkmuted, fill=gridline!70] (0,0) rectangle (0.4,0.2); plain code\\[2pt]
+  \tikz\draw[inkmuted, fill=warm!14] (0,0) rectangle (0.4,0.2); the person decides\\[2pt]
+  \tikz\draw[failred, densely dotted, thick, -{Stealth}] (0,0.1) -- (0.5,0.1); failure path\\[2pt]
+  \tikz\draw[accent, dashed, thick, -{Stealth}] (0,0.1) -- (0.5,0.1); the person's change};
+\end{tikzpicture}
+\caption{The flow as built, with its failure paths. Each path is covered by a browser or unit
+test, or was checked on my phone.}
+\label{fig:flow}
+\end{figure}

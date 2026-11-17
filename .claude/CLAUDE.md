@@ -40,7 +40,7 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 - "Inkreel" is a working name: another AI product uses it (see `docs/market.md`, "Name check"). Keep the name easy to change: no hard-coded domain, name in one config place.
 
 ## Where things go
-- `README.md`: for people visiting the repo. Brief and explanatory: what Inkreel is, how it works, status, how to run it. No internal decisions or rules.
+- `README.md`: for people visiting or reviewing the repo. Brief: what Inkreel is, project status (works, simulated, unfinished), technology stack, running or inspecting it (including your own copy with your own key), development record (significant changes, why, what was checked, commit links), AI assistance, additional files, licence. States its prose word count near the top; update the record and the count when significant changes land.
 - `.claude/CLAUDE.md` (this file): rules and conventions for working in the repo.
 - `docs/decisions.md`: detailed technical decisions and their reasons, added as each one is made.
 - `docs/plan.md`: the build plan: flow, architecture, what the system may do, model calls, milestones. Follow it; update it when the plan changes.

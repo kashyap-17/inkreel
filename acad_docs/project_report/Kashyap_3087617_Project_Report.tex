@@ -1,0 +1,300 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+% Zotero exports some CHI/IUI series fields with a Unicode prime (IUI′15).
+\DeclareUnicodeCharacter{2032}{'}
+\usepackage[default]{sourceserifpro}
+\usepackage{sourcesanspro}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{microtype}
+\usepackage[table]{xcolor}
+\usepackage{caption}
+\usepackage{titlesec}
+\usepackage{cite}
+\usepackage{graphicx}
+\usepackage[export]{adjustbox}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,calc,backgrounds}
+
+\definecolor{inkprimary}{HTML}{1A1A19}
+\definecolor{inkmuted}{HTML}{52514E}
+\definecolor{gridline}{HTML}{E6E5E2}
+\definecolor{accent}{HTML}{2A78D6}
+\definecolor{warm}{HTML}{D9663A}
+\definecolor{failred}{HTML}{B3261E}
+\color{inkprimary}
+
+\captionsetup{font=footnotesize}
+\titleformat{\section}{\normalfont\sffamily\large\bfseries}{}{0em}{}
+\titlespacing*{\section}{0pt}{1.1ex}{0.5ex}
+\setlength{\parskip}{0.45ex}
+
+\usepackage[hidelinks]{hyperref}
+\hypersetup{
+  pdftitle  = {Inkreel: Your Words First, Photos Found to Fit},
+  pdfauthor = {Kashyap Shankar Iyer},
+}
+
+% Figure images are copies of phone screenshots with personal photos, so they live in figures/,
+% which is git-ignored, and the built PDF is not committed either.
+\graphicspath{{figures/}}
+
+% Counted words: the abstract, and the main report from the Scope section to the end of the
+% Compromises section, including the rationale table's text. Figures, storyboards, captions, the
+% title block, repository links and references are excluded by the brief and wrapped in
+% TC:ignore. texcount skips the table, so its words are counted separately and added.
+\newcommand{\abstractcount}{274}
+\newcommand{\maincount}{1077}
+\newcommand{\totalcount}{1351}
+\newcommand{\repo}{\href{https://github.com/kashyap-17/inkreel}{github.com/kashyap-17/inkreel}}
+\newcommand{\commit}{\texttt{TBD}}
+
+% A storyboard frame: an image cropped to its useful part (trim = left bottom right top, in px),
+% with a number, who acts (P person, S system) and a short label.
+\newcommand{\frameimg}[4]{%
+  \begin{minipage}[t]{#1}\centering
+  \includegraphics[width=\linewidth,trim=#2,clip,valign=t]{#3}\\[2pt]
+  \parbox[t]{\linewidth}{\raggedright\sffamily\scriptsize #4}%
+  \end{minipage}}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\begin{document}
+
+%TC:ignore
+\begin{center}
+  {\sffamily\Large\bfseries Inkreel: Your Words First, Photos Found to Fit}\\[1ex]
+  {\sffamily Kashyap Shankar Iyer (3087617) \quad·\quad Intelligent Interactive Systems,
+  Assignment~2: Project Report}\\[0.6ex]
+  {\sffamily\bfseries Word count: \totalcount\ (abstract \abstractcount, main report \maincount)}\\[0.4ex]
+  {\sffamily\small Repository and README: \repo \quad·\quad submitted commit \commit}
+\end{center}
+%TC:endignore
+
+\section{Abstract}
+
+After a trip, people hold many photos and want to share a few, with words that sound like
+them. AI tools start from the photos and write the words, so people who already know what they
+want to say must still find the photos themselves. Inkreel reverses the order: the person writes
+first, and Inkreel finds the photos in their album that fit, with a short reason
+for each match, then builds an Instagram carousel and caption.
+
+I built Inkreel as a mobile web app (Next.js on Vercel, with Google's Gemini models) and tested
+it on my own phone with my own photos. Two of the three authorship modes proposed in
+Assignment~1 work end to end. In ``I have writing'', the person's words are never changed: code
+splits them into parts, and the caption is the writing exactly as typed. In ``Write with
+Inkreel'', the person jots down a few thoughts and the AI drafts short lines from them; each line
+shows which thoughts it came from, the person's own words are highlighted, and every line can be
+edited, dropped or drafted again. In both modes, an LLM turns each line into photo searches,
+image embeddings score the photos, code splits the writing and chooses a photo for each part, and
+the LLM checks each choice and writes its reason. The person can swap, add or remove photos and
+move lines before sharing.
+
+Current scope: the core loop is deployed and tested with my writing and photos. Planned: the third
+mode (AI suggestions inside the person's writing), text on the images, and a study of match quality
+and ownership with other people.
+
+\section{Scope, and changes since Assignment 1}
+
+Assignment~1 (A1) asked how match quality and ownership change as the writing moves from
+AI-written to entirely the person's own. This phase builds the system that question
+needs. Three things changed. Photos are no longer grouped into ``moments'': my first real
+album had several good, different shots within 15 minutes, so only near-identical shots are
+stacked. People no longer split their writing; Inkreel does, once the photos are known. And the
+AI-written mode now treats the person's notes as hints, not words to reuse (Section~5).
+
+\section{Design rationale}
+
+Table~\ref{tab:rationale} lists the main choices, with course concepts by lecture (L01--L12).
+
+\begin{table}[H]
+\centering\footnotesize
+\renewcommand{\arraystretch}{1.18}
+\begin{tabularx}{\textwidth}{@{}L{3.4cm}YL{2.95cm}L{1.75cm}@{}}
+\toprule
+\textbf{Design choice} & \textbf{Why it suits the problem} & \textbf{Evidence or reference} & \textbf{Status}\\
+\midrule
+\textbf{Words first:} the person writes, then adds photos; Inkreel finds photos that fit.
+& People also tell photo stories story-first; AI tools serve only photo-first telling.
+& Balabanović et al.~\cite{balabanovic_storytelling_2000}; my market check
+& Implemented\\
+\rowcolor{gridline!45}
+\textbf{Words never changed:} code splits them at sentence and line breaks; the caption is the
+text as typed.
+& Ownership falls as the AI's share rises~\cite{draxler_ai_2024}. A model generates rather than
+copies (generation, not lookup, L08), so no model touches this text.
+& Unit test: parts rejoin into the exact text. A couplet split in my test: blank lines now
+kept.
+& Implemented\\
+\textbf{A reason and a swap per match:} the reason quotes the line; ``Change photo'' offers the
+next picks first.
+& Correction must be cheap~\cite{horvitz_principles_1999}. People mostly take the first-ranked
+option (bounded rationality, L06), so alternatives are shown; a reason beside the photo is
+checked at a glance (shown, not just cited, L11).
+& Explanatory debugging~\cite{kulesza_principles_2015}; Guidelines 9 and
+11~\cite{amershi_guidelines_2019}
+& Implemented\\
+\rowcolor{gridline!45}
+\textbf{Search, not description:} an LLM turns each line into up to three visual readings;
+embeddings score the photos; code picks; the LLM checks only the picks.
+& Each photo is embedded once, and feelings need rewording into what a camera sees. The path is
+known, so a fixed workflow, not an agent, is the simplest system that works (L02).
+& Plain lines once beat the readings, so each line is also searched as written.
+& Implemented\\
+\textbf{Four labelled thoughts, used as hints:} the AI writes 2--4 lines; named places become
+hashtags.
+& Labels turn recall into recognition (L05,~\cite{norman_design_2013}). Notes reused word
+for word read as a list.
+& I rejected versions 2--8 as reworded answers (Figure~\ref{fig:prompts}).
+& Implemented\\
+\rowcolor{gridline!45}
+\textbf{Provenance per drafted line:} its source thoughts; own words highlighted by code; edit,
+drop, draft again.
+& Ownership rises with the person's influence, and editing restores the most
+control~\cite{draxler_ai_2024}. AI suggestions shift what people
+write~\cite{jakesch_co-writing_2023}, so the AI adds no facts. A first draft anchors the edit
+(anchoring, L06), so changing it is one tap.
+& On my phone: every line showed its sources (Figure~\ref{fig:sb-write})
+& Implemented\\
+\textbf{Consent once, little data:} small copies without location leave after one consent;
+weak photos are set aside, restorable.
+& Sending cannot be undone or seen, so Inkreel asks; setting aside is reversible and visible, so it
+acts and shows it (L12). Automation and control both stay
+high~\cite{shneiderman_human-centered_2022}.
+& Consent screen (Figure~\ref{fig:sb-fail})
+& Implemented\\
+\rowcolor{gridline!45}
+\textbf{A wait that keeps moving:} a progress bar with the step and time left; backup requests
+for calls that hang.
+& Response-time limits of about 0.1, 1 and 10~s (L04,~\cite{miller_response_1968}); model calls
+vary, and the API was often busy (L08).
+& Matching took 10 minutes once, now 8~s
+& Implemented\\
+\textbf{Mix mode; text on images.}
+& Completes A1's authorship range; text on images shows which line goes with which photo.
+& A1 question~\cite{draxler_ai_2024, dhillon_shaping_2024}
+& Planned\\
+\bottomrule
+\end{tabularx}
+\caption{Design rationale. Lecture labels: L02 the simplest system that works; L04 feedback
+timing; L05 recognition over recall; L06 bounded rationality and anchoring; L08 LLMs generate,
+not look up; L11 sources shown, not just cited; L12 confirm what cannot be undone or seen.}
+\label{tab:rationale}
+\end{table}
+
+\section{System}
+
+Most of the work (Figures~\ref{fig:arch} and~\ref{fig:flow}) is plain code on the phone: reading photos, setting weak ones aside,
+stacking, scoring and splitting the writing, which keeps it fast, free and testable. The server
+holds the API key, checks the invite code and validates every request and reply against a schema,
+which guarantees shape, not truth (L09). The AI has three jobs, each one call with a versioned
+prompt. Matching depends on two of them: photo vectors and search phrases are made in parallel,
+code combines them, and only then does the check see the chosen photos. Each AI output is a
+proposal that code checks (the model proposes, the system disposes; L12): a cited thought must
+exist, a new place name is flagged, a rejected photo is replaced. A failed call makes the step
+that depends on it fall back, never leaving the person stuck.
+
+%TC:ignore
+\input{fig-system}
+\input{fig-flow}
+%TC:endignore
+
+\section{Interaction}
+
+Figures~\ref{fig:sb-own} and~\ref{fig:sb-write} show implemented behaviour on my phone;
+Figure~\ref{fig:sb-fail} is simulated; unfinished features appear only as planned boxes in
+Figure~\ref{fig:arch}. In Figure~\ref{fig:sb-write}, ``Draft again'' fixed two invented
+details. Throughout, the system
+proposes and the person decides (mixed initiative~\cite{horvitz_principles_1999}). On the four
+interaction variables (L01), the person starts each step; inferences are visible as reasons and
+sources; every change is reversible; and no writing or photos are sent without a tap.
+
+%TC:ignore
+\input{fig-storyboards}
+%TC:endignore
+
+\section{How the work developed}
+
+I built Inkreel in 33 commits from 7 to 17 November, testing on my phone (README, development
+record). Three changes show how evidence moved the design.
+
+\textbf{Photos that could not be opened.} On Android, up to 28 of 32 picked photos failed partway
+through reading. Error reports in the server log named the cause. I reproduced it in desktop
+Chrome by changing picked files on disk (4 of 30 read), then fixed it by copying each photo the
+moment it is picked (30 of 30).
+
+\textbf{Slow matching.} With the API busy, matching once took about 10 minutes. Retries moved to
+the server, hung calls get backup requests, and a progress bar replaced the spinner. My next test
+matched in 8~s.
+
+\textbf{Drafts that were not posts.} I ran each prompt version on the same answer sets, changing
+one thing at a time (L09's fixed testing loop), and kept every run. Over eleven versions the
+prompt moved from keeping the person's words to treating them as hints (Figure~\ref{fig:prompts}).
+
+%TC:ignore
+\begin{figure}[!ht]
+\centering\footnotesize
+\begin{tabular}{@{}L{3.6cm}L{3.6cm}L{3.6cm}L{3.9cm}@{}}
+\toprule
+\textbf{My thoughts} & \textbf{Version 6 (16 Nov)} & \textbf{Version 8 (16 Nov)} & \textbf{Version 10 (17 Nov)}\\
+\midrule
+moment: Sunset in camden, full on punk\newline place: Hyde Park, beautiful lake\newline felt:
+Peaceful but also lively\newline other: The blue skies, the bus rides
+& bus rides under blue skies\newline by the beautiful lake in Hyde Park\newline sunset in camden
+turning full on punk\newline peaceful yet so lively
+& bus rides under blue skies\newline past the beautiful lake in Hyde Park\newline to a sunset in
+camden, full on punk\newline somehow peaceful but also lively
+& Blue skies over the lake today.\newline Bus rides watching the city move.\newline Loud punk and
+quiet water all at once.\newline \#Camden \#HydePark\\
+\midrule
+& \textit{My answers as a list} & \textit{One thread, still my answers} & \textit{Reads as a post}\\
+\bottomrule
+\end{tabular}
+\caption{The same thoughts drafted by three prompt versions on the small, fast model, with my
+verdict. Version 11 adds each line's sources. All runs: \texttt{web/experiments/drafts/results/}.}
+\label{fig:prompts}
+\end{figure}
+%TC:endignore
+
+\section{Compromises and next steps}
+
+Posts are photos with the words in the caption: no text on images or video until real posts show
+the need. Drafts and checks run only on a small, fast model, since larger ones took 15--40~s and
+were often busy; it still invents details in some drafts. Testing is qualitative, from my own
+phone tests on a small set of photos, with no metrics yet. The planned study measures match
+quality, ownership and willingness to post across both modes with other people (the A1 question).
+Building already showed a tension it should test: lines in Inkreel's words read better as posts
+but keep less of the person's text, which the A1 literature links to lower
+ownership~\cite{draxler_ai_2024}.
+
+%TC:ignore
+\clearpage
+\section*{Repository and development evidence}
+\begin{itemize}\setlength{\itemsep}{0pt}
+\item Repository and README: \repo; submitted commit \commit.
+\item Development record: README, ``Development record'' (changes, reasons, checks and commits);
+fuller log in \texttt{docs/devlog.md}; decisions and their reasons in \texttt{docs/decisions.md}.
+\item AI assistance: README, ``AI assistance''.
+\item Prompt experiments and their outputs: \texttt{web/experiments/}. Tests: \texttt{web/e2e/}
+and \texttt{*.test.ts} next to the code (119 unit and 17 browser tests).
+\end{itemize}
+
+\section*{Original, reused and assisted work}
+{\small \textbf{Original:} the idea, the design decisions, the prompt directions and verdicts, the
+phone tests and screenshots, and the Assignment~1 literature review. \textbf{Reused:} open-source
+libraries (README, ``Technology stack'') and Google's Gemini models through their API; course
+concepts, cited by lecture (L01--L12). \textbf{Assisted:} the code, tests, documentation and
+drafts of this report were written with Claude Code under my direction; the README's ``AI
+assistance'' gives examples of what I reviewed and changed. Figures~\ref{fig:arch}
+and~\ref{fig:flow} update the diagrams in \texttt{docs/plan.md}.}
+
+\bibliographystyle{abbrv}
+\bibliography{references}
+%TC:endignore
+
+\end{document}

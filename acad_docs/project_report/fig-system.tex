@@ -1,0 +1,86 @@
+% Figure 1: system diagram. Solid = implemented, dashed = planned, dotted = simulated (tests only).
+\begin{figure}[p]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\scriptsize,
+  box/.style={draw=inkmuted, rounded corners=2pt, fill=white, text width=#1, align=left, inner sep=4pt},
+  box/.default=3.7cm,
+  plan/.style={box=#1, dashed},
+  plan/.default=3.2cm,
+  sim/.style={box=#1, dotted, thick},
+  sim/.default=3.5cm,
+  zone/.style={draw=inkmuted!50, rounded corners=4pt, fill=gridline!45, inner sep=5pt},
+  ztitle/.style={font=\sffamily\scriptsize\bfseries, anchor=south west, inner sep=1.5pt},
+  arr/.style={-{Stealth[length=1.8mm]}, inkmuted, thick},
+  two/.style={{Stealth[length=1.8mm]}-{Stealth[length=1.8mm]}, accent, thick},
+  lab/.style={font=\sffamily\tiny, text width=#1, align=center, inner sep=1pt},
+  lab/.default=2.0cm,
+  node distance=0.3cm,
+]
+% ---- Person (top)
+\node[box=7.5cm, fill=warm!12, align=center] (person) at (2.0,6.9) {\textbf{Person}: writes, or jots four thoughts; picks photos; consents once;\\swaps, adds, removes, edits, drops; undoes; shares};
+
+% ---- Phone browser (x = 2.0)
+\node[box, anchor=north] (ui) at (2.0,4.6) {\textbf{Screens and flow state}\\typed reducer with undo; ``Start over'' deletes everything};
+\node[box, below=of ui] (pp) {\textbf{Photo pipeline} (code)\\copies each photo at pick; capture time; sharpness and exposure; sets weak photos aside; stacks near-identical shots};
+\node[box, below=of pp] (mt) {\textbf{Matching} (code)\\cosine scores and time hints; splits the writing into parts; one photo per stack; weak when the margin is small};
+\node[box, below=of mt] (dc) {\textbf{Draft checks} (code)\\own words highlighted; a source kept only if it was given; new names flagged; hashtags cleaned};
+\node[box, below=of dc] (db) {\textbf{IndexedDB}: the draft, photo copies, embeddings};
+\node[box, below=of db] (share) {\textbf{Phone share sheet}: photos to Instagram; the person pastes the caption};
+\begin{scope}[on background layer]
+\node[zone, fit=(ui)(pp)(mt)(dc)(db)(share)] (phone) {};
+\end{scope}
+\node[ztitle] at (phone.north west) {Phone browser (Next.js, React, TypeScript)};
+
+% ---- Vercel (x = 8.25)
+\node[box=3.0cm, anchor=north, minimum height=5.6cm] (api) at (8.25,4.6) {\textbf{API routes} (Node)\\[4pt]
+  checks the invite code\\[3pt]
+  validates every request and reply (Zod)\\[3pt]
+  sends backup requests when a call hangs or is busy\\[3pt]
+  versioned prompts: searches, check, draft\\[3pt]
+  one log line per call\\[3pt]
+  keeps nothing};
+\begin{scope}[on background layer]
+\node[zone, fit=(api)] (server) {};
+\end{scope}
+\node[ztitle] at (server.north west) {Vercel server};
+
+% ---- Gemini (x = 14.0)
+\node[box=3.3cm, anchor=north] (emb) at (14.0,4.6) {\textbf{Gemini Embedding 2}\\photos and search phrases $\rightarrow$ vectors};
+\node[box=3.3cm, below=of emb] (lite) {\textbf{Gemini 3.5 Flash-Lite}\\(1) a line $\rightarrow$ up to three visual readings\\(2) chosen photos $\rightarrow$ fits? and a reason\\(3) thoughts $\rightarrow$ lines, sources, hashtags};
+\node[box=3.3cm, below=of lite, text=inkmuted] (flash) {\textbf{Gemini 3.6 Flash}: drafts, behind a switch (off)};
+\begin{scope}[on background layer]
+\node[zone, fit=(emb)(lite)(flash)] (google) {};
+\end{scope}
+\node[ztitle] at (google.north west) {Google Gemini API};
+
+% ---- Planned and simulated
+\node[plan=3.0cm, below=0.8cm of api] (mix) {\textbf{Planned:} Mix, AI lines suggested inside the person's writing};
+\node[plan=3.0cm, below=of mix] (txt) {\textbf{Planned:} text on images; an on-phone embedding model};
+\node[plan=3.3cm, below=0.8cm of flash] (study) {\textbf{Planned:} a study of match quality and ownership; opt-in tracing};
+\node[sim=3.3cm, below=of study] (tests) {\textbf{Simulated:} browser tests answer for the server (staged replies, drawn photos)};
+
+% ---- Arrows
+\draw[arr] ([xshift=-0.7cm]person.south) -- node[lab=2.3cm, left=2pt] {words, photos, taps} ([xshift=-0.7cm]person.south |- ui.north);
+\draw[arr] ([xshift=0.7cm]person.south |- ui.north) -- node[lab=2.8cm, right=2pt] {matches and reasons, lines and sources, progress} ([xshift=0.7cm]person.south);
+\draw[two] (ui.east) -- node[lab, above=1pt] {thoughts (/draft)} (ui.east -| api.west);
+\draw[two] (pp.east) -- node[lab, above=1pt] {small photo copies, after consent (/embed)} (pp.east -| api.west);
+\draw[two] (mt.east) -- node[lab, above=1pt] {lines (/queries); chosen photos (/check)} (mt.east -| api.west);
+\draw[two] (emb.west -| api.east) -- (emb.west);
+\draw[two] (lite.west -| api.east) -- (lite.west);
+\draw[two, dashed, accent!50] (flash.west -| api.east) -- (flash.west);
+\draw[arr] ([xshift=-4pt]ui.west) -- ++(-0.35,0) |- node[lab=1.2cm, pos=0.25, left=1pt] {carousel and caption} ([xshift=-4pt]share.west);
+\draw[arr, dashed] (mix.west) -- (mix.west -| dc.east);
+
+% ---- Legend
+\node[anchor=north west, font=\sffamily\tiny, align=left] at (6.6,-4.6) {%
+  \tikz\draw[inkmuted] (0,0) rectangle (0.4,0.2); implemented\quad
+  \tikz\draw[inkmuted, dashed] (0,0) rectangle (0.4,0.2); planned\quad
+  \tikz\draw[inkmuted, dotted, thick] (0,0) rectangle (0.4,0.2); simulated\quad
+  \tikz\draw[accent, thick, {Stealth}-{Stealth}] (0,0.1) -- (0.45,0.1); AI requests and replies};
+\end{tikzpicture}
+\caption{System diagram. The screens call the phone's code modules; only the three blue routes
+leave the phone. The AI's output is a proposal: code checks and arranges it, and the person
+decides.}
+\label{fig:arch}
+\end{figure}
