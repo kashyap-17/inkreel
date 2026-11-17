@@ -15,45 +15,44 @@ Inkreel reads the user's words and their trip photos, stacks near-identical shot
 
 ## 2. User flow
 
-Inkreel is a workflow: code fixes the path, and the model is called at set points. This graph is the first draft. Edges found while building and testing get added here, and each edge is a test case.
+Inkreel is a workflow: code fixes the path, and the model is called at set points. This graph is the flow as built (17 Nov 2026). Edges found while building and testing get added here, and each edge is a test case.
 
 Solid lines are the main path. Dotted lines are the user's changes and the failure paths.
 
 ```mermaid
 flowchart TD
-  W[Words: choose a mode] --> W1[I have writing: paste or type]
-  W --> W2[Help me write: answer 4 questions]
-  W --> W3[Mix: paste writing, AI suggests extra lines]
-  W1 --> P[Write-up: the text, each sentence marked yours or AI; photo estimate shown]
-  W2 --> P
-  W3 --> P
-  P --> U[Add photos]
-  U --> R[Prepare in the browser: read times, set aside weak photos, stack near-identical shots]
-  P --> Q[Search queries: LLM writes up to three photo descriptions per sentence, text only]
-  R --> C{Send resized photos to index them?}
-  C -->|yes| I[Index photos: one embedding per stack's top pick, saved on the phone]
+  S0[Start: invite code once per device] --> W1[I have writing: paste or type]
+  S0 --> A[Write with Inkreel: four thoughts, a moment, a place, how it felt, anything else]
+  A --> D[Draft: LLM writes a short post from the thoughts as hints, plus named places as hashtags]
+  D --> DL[Your lines: each with its source thoughts, own words highlighted, edit or drop, draft again]
+  W1 --> T[Writing, split into sentences in code, each marked yours or Inkreel's]
+  DL --> T
+  T --> U[Add photos]
+  U --> R[Prepare on the phone: copy files, read times, sharpness and exposure, set weak photos aside, stack near-identical shots]
+  R --> C{Consent: send small copies of the photos?}
   C -->|no| H[Match by hand]
-  I --> M[Match and chunk, in code: score sentences against photos, group into chunks, pick photos]
+  C -->|yes| I[Index photos: one embedding per stack's top pick, saved on the phone]
+  C -->|yes| Q[Search phrases: LLM writes up to three photo descriptions per sentence, each is embedded]
+  I --> M[Match and chunk, in code: score sentences against photos, group into parts, at most one photo per stack]
   Q --> M
-  M --> K[Check and explain: chosen photo + 2 alternatives per chunk, small images]
-  K --> V[Review: swap, pick photo, move a sentence, fewer or more photos, undo]
+  M --> K[Check and explain: LLM looks at each chosen photo and its alternatives, writes the reason]
+  K --> V[Review: swap, add or remove a photo, move a line, fewer or more photos, caption only, undo]
   H --> V
-  V --> E[Preview: carousel and caption]
-  E --> S[Share or download]
+  V --> E[Preview: carousel and caption, hashtags at the end]
+  E --> SH[Share, or save the photos, caption copied]
 
-  V -.->|text edited: new queries for changed sentences, re-match| Q
-  V -.->|fewer, more or one photo: re-chunk in code| M
-  V -.->|re-match the rest| M
-  V -.->|photos added or removed: restack| R
-  E -.->|back| V
+  DL -.->|change my answers| A
+  V -.->|fewer or more photos: re-chunk in code| M
+  V -.->|photos added or a set-aside one used: restack and match again| R
+  E -.->|tap a slide to change it| V
 
-  U -.->|no capture time: use file date, ask to check order| R
-  U -.->|HEIC not decodable: convert or skip and say so| R
-  I -.->|quota or error after one retry: match by time only, or by hand| H
-  Q -.->|invalid reply after one retry: the sentence itself is the query| M
-  K -.->|fails: keep matches, reason is the query, marked unchecked| V
-  M -.->|weak or no fit: flagged, caption only offered| V
-  E -.->|over 20 slides or 2200 characters| V
+  U -.->|phone withdraws access: copies made at pick time| R
+  U -.->|photo can't be opened: left out, reason reported| R
+  D -.->|busy or no answer: backup requests, then a plain message, answers kept| A
+  I -.->|no answer: backup requests at 5 s and 10 s, matching goes on with the photos indexed| M
+  Q -.->|fails: the sentence itself is the search| M
+  K -.->|slow: matches open after 15 s, reasons follow, a photo that doesn't fit is replaced| V
+  S0 -.->|code turned down later: back to start, work kept| S0
 ```
 
 ### Changes the user makes
@@ -89,6 +88,44 @@ Every change is made directly on screen: tap, drag, edit. There's no chat. Each 
 | Consent | User declines | Match by hand (or, if the on-phone model is adopted, match without the check step); no photos leave the phone |
 
 ## 3. Architecture
+
+As built (17 Nov 2026). What runs where, and which model each call uses:
+
+```mermaid
+flowchart LR
+  subgraph Phone["Phone browser: Next.js 16 page, React 19, TypeScript, plain CSS"]
+    UI[Screens and flow state, a typed reducer]
+    PP[Photo pipeline: EXIF with exifr, canvas copies, sharpness, hashes, stacks]
+    MT[Matching and chunking in code: cosine scores, time hints, parts]
+    DB[(IndexedDB: the draft, photo copies, embeddings, saved searches)]
+    UI --> PP --> DB
+    UI --> MT
+    MT --> DB
+  end
+  subgraph Server["Vercel: Next.js API routes, Node, keeps nothing"]
+    API[Invite check, Zod validation, backup requests, logging]
+    PR[Prompts, versioned: queries, check, draft]
+  end
+  subgraph Google["Google Gemini API"]
+    EMB[Gemini Embedding 2: photos and search phrases]
+    LITE[Gemini 3.5 Flash-Lite: search phrases, checks and reasons, drafts]
+    FL[Gemini 3.6 Flash: drafts, only if DRAFT_FLASH_FIRST is on]
+  end
+  LOG[(Vercel runtime logs: one line per call, tester records, photo reports)]
+  UI -->|/api/draft: the thoughts| API
+  MT -->|/api/embed: small photo copies, search phrases| API
+  MT -->|/api/queries: the sentences| API
+  MT -->|/api/check: chosen photos, small| API
+  API --- PR
+  API --> EMB
+  API --> LITE
+  API -.-> FL
+  API --> LOG
+```
+
+- **Frontend:** a Next.js 16 app (App Router) with React 19 client components, TypeScript and plain CSS (no UI library), used in the phone's browser. Zod schemas are shared by the browser and the server.
+- **Order inside matching:** photos are embedded as images directly (no description written first). The writing goes through the LLM first: it writes up to three search phrases per sentence, and those phrases are embedded. Scores compare the two sets of vectors, the parts and photos are chosen in code, and only then does the LLM see the chosen photos, to check them and write each reason.
+- **Tests:** Vitest unit tests next to the code, Playwright browser tests in `web/e2e/` (also runnable against the live site), prompt experiments in `web/experiments/`.
 
 **In the browser:**
 - Photo pipeline (plain code): read EXIF, score blur and exposure, hash for duplicates, detect screenshots, stack near-identical shots (time and hash) with a top pick for each, resize.
@@ -265,7 +302,7 @@ The owner chose to build straight away and run these checks in the app rather th
 - **Go on** if at least half the matches are right or nearly right.
 
 ### Milestone 1: core loop, "I have writing"
-- Next.js app; Words → Photos → Consent → Review → Preview → Share. The start screen offers "I have writing" and "Write with Inkreel" (help me write built 16 Nov; mix not yet).
+- Next.js app; Words → Photos → Consent → Review → Preview → Share (the flow and architecture as built are drawn in sections 2 and 3). The start screen offers "I have writing" and "Write with Inkreel" (help me write built 16 Nov; mix not yet).
 - Filtering and stacking in the browser; calls 1–3 through the server function, matching and chunking in code; validation; trace.
 - Match by hand when consent is declined or a call fails.
 - Deployed on Vercel with an invite code. Before the link goes to anyone but the owner: paid Gemini tier and an 18+ note (see "AI model" in `decisions.md`).
