@@ -81,8 +81,11 @@ export type DraftRequest = z.infer<typeof DraftRequest>;
 /** One drafted line, the answer it draws on most, and the exact words it draws on (checked in code). */
 export const DraftedLine = z.object({
   text: z.string().min(1).max(400),
-  section: z.enum([...SECTION_KEYS, "none"]),
-  quote: z.string().max(400),
+  /** Where the line's own words come from: found in code since draft-v10, so usually left out. */
+  section: z.enum([...SECTION_KEYS, "none"]).default("none"),
+  quote: z.string().max(400).default(""),
+  /** The answers the line draws on, as named by the model (shown as the line's reason). */
+  from: z.array(z.enum(SECTION_KEYS)).max(4).default([]),
 });
 export type DraftedLine = z.infer<typeof DraftedLine>;
 

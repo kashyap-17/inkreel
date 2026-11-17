@@ -46,6 +46,7 @@ describe("unknownNames", () => {
 
 describe("checkLines", () => {
   it("keeps confirmed sources, finds them when the quote is wrong, and flags only new names", () => {
+    // (Sources named by the model are covered in "line sources" below.)
     const lines = checkLines(ANSWERS, [
       { text: "Lost in the old market at dusk", section: "moment", quote: "lost in the old market" },
       { text: "The sea was calling", section: "felt", quote: "the sea was calling" },
@@ -78,14 +79,25 @@ describe("ownWords", () => {
       .filter((p) => p.mine)
       .map((p) => p.text);
 
-  it("picks out runs of two or more of the person's words", () => {
+  it("picks out runs of the person's words, small words included", () => {
     expect(mine("Lost in the old market, and I didn't mind")).toEqual(["Lost in the old market", "didn't mind"]);
-    expect(mine("By the blue door, slow and warm")).toEqual(["the blue door"]);
   });
 
-  it("ignores single words and runs of only small words", () => {
-    expect(mine("The market was slow")).toEqual([]);
+  it("picks out single words of theirs, but not small words on their own", () => {
+    expect(mine("The market was slow")).toEqual(["market", "slow"]);
+    expect(mine("By the blue door, slow and warm")).toEqual(["the blue door", "slow", "warm"]);
     expect(mine("in the end")).toEqual([]);
+  });
+
+  it("allows a one-letter typo in longer words, not in short ones", () => {
+    const typo = { ...ANSWERS, other: "Blue skis and bus rides" };
+    const marked = (line: string) =>
+      ownWords(line, typo)
+        .filter((p) => p.mine)
+        .map((p) => p.text);
+    expect(marked("Blue skies from the top deck")).toEqual(["Blue skies"]);
+    expect(marked("A long bus ride")).toEqual(["bus ride"]);
+    expect(marked("Bug on the dock")).toEqual([]);
   });
 
   it("gives back the whole line, in order", () => {
@@ -126,5 +138,20 @@ describe("cleanHashtags", () => {
       "#StIves",
       "#A",
     ]);
+  });
+});
+
+describe("line sources", () => {
+  it("uses the answers the model names, if they were given, and else the answer its words come from", () => {
+    const answers = { ...ANSWERS, other: "" };
+    const [a, b, c] = checkLines(answers, [
+      { text: "Dusk, and nowhere to be", section: "none", quote: "", from: ["moment", "felt"] },
+      { text: "Something else entirely", section: "none", quote: "", from: ["other"] },
+      { text: "Past the blue door", section: "none", quote: "" },
+    ]);
+    expect(a!.from).toEqual(["moment", "felt"]);
+    // "other" was left empty, so it can't be a source.
+    expect(b!.from).toEqual([]);
+    expect(c!.from).toEqual(["place"]);
   });
 });

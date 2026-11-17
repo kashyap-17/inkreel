@@ -10,6 +10,7 @@ import {
   type DraftReply,
   type DraftRequest,
   type QueriesRequest,
+  SECTION_KEYS,
 } from "@/lib/ai/schemas";
 import { cleanHashtags, statesFeeling } from "@/lib/words/draft";
 import { CHECK_SCHEMA, CHECK_TASK, DRAFT_SCHEMA, draftPrompt, QUERIES_SCHEMA, queriesPrompt } from "./prompts";
@@ -284,16 +285,21 @@ export async function writeDraft(req: DraftRequest): Promise<DraftReply> {
         lines?: unknown;
         hashtags?: unknown;
       };
-      const texts = Array.isArray(raw?.lines) ? raw.lines.filter((t): t is string => typeof t === "string") : [];
-      // Which of the person's words a line uses is found in code (checkLines), not asked of the model.
+      const items = Array.isArray(raw?.lines) ? (raw.lines as { text?: unknown; from?: unknown }[]) : [];
+      // Which of the person's own words a line keeps is found in code (checkLines); the model only
+      // names the answers each line draws on.
       const parsed = DraftedLine.array()
         .min(1)
         .max(12)
         .safeParse(
-          texts
-            .map((t) => t.trim())
-            .filter(Boolean)
-            .map((text) => ({ text, section: "none", quote: "" })),
+          items
+            .filter((l) => typeof l?.text === "string" && l.text.trim())
+            .map((l) => ({
+              text: (l.text as string).trim(),
+              section: "none",
+              quote: "",
+              from: Array.isArray(l.from) ? l.from.filter((k) => (SECTION_KEYS as readonly unknown[]).includes(k)) : [],
+            })),
         );
       if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "bad shape");
       const tags = Array.isArray(raw?.hashtags) ? raw.hashtags.filter((t): t is string => typeof t === "string") : [];

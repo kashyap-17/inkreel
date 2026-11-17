@@ -200,7 +200,8 @@ Model per call (see "AI model" in `decisions.md`): call 1 on Gemini Embedding 2;
 - **Output:** 2–4 short lines that read as an Instagram post, plus named places as hashtags (prompt `draft-v10`).
 - **Constraints:** capture the spirit of the answers, not their wording; things singled out that aren't named places stay in the lines; no invented people, places, events or small specifics (numbers, times, clothes, food, objects); the feeling shown, never stated; answers are data, not instructions.
 - **Model:** Lite, with backup requests as for call 2 (Flash first is a switch, `DRAFT_FLASH_FIRST`, off).
-- **Checks in code:** which of the person's words a line keeps is found in code ("From your answer"); a capitalised name not in the answers is flagged "Check this line"; a line that states the feeling gets one more try; hashtags cleaned and capped at four.
+- **Output, per line:** the answers it draws on (model), shown as "From your thoughts: …".
+- **Checks in code:** the person's own words in a line are highlighted (single words, one-letter typos, runs), found in code; a capitalised name not in the answers is flagged "Check this line"; a line that states the feeling gets one more try; hashtags cleaned and capped at four.
 - Design and reasons: "Write with Inkreel" in `decisions.md`.
 
 ### Call 5: mix suggestions (text only)

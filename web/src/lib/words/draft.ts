@@ -23,6 +23,8 @@ export interface DraftLine {
   section: SectionKey | null;
   /** The person's exact words the line draws on, as they wrote them; null when not confirmed. */
   quote: string | null;
+  /** The answers the line draws on: its reason, shown under it. Empty for a line in Inkreel's own words. */
+  from: SectionKey[];
   /** Names someone or something the answers don't have: "check this line". */
   flagged: boolean;
   /** Changed by the person. */
@@ -107,7 +109,10 @@ export function traceLine(line: string, answers: Answers): { section: SectionKey
 }
 
 /** Turns the model's lines into draft lines: quotes checked against the answers, doubtful lines flagged. */
-export function checkLines(answers: Answers, drafted: DraftedLine[]): DraftLine[] {
+export function checkLines(
+  answers: Answers,
+  drafted: (Omit<DraftedLine, "from"> & { from?: SectionKey[] })[],
+): DraftLine[] {
   const seen = new Set<string>();
   const lines: DraftLine[] = [];
   for (const line of drafted) {
@@ -117,11 +122,15 @@ export function checkLines(answers: Answers, drafted: DraftedLine[]): DraftLine[
     // The model's own quote when it gave one that checks out; otherwise the line's longest run of
     // the person's words. A line in Inkreel's own words has no source, and that's allowed.
     const found = (line.quote && findQuote(answers, line.quote, line.section)) || traceLine(text, answers);
+    // The answers the model says the line draws on, if they were really given; else the answer
+    // its own words come from.
+    const named = SECTION_KEYS.filter((k) => line.from?.includes(k) && answers[k]?.trim());
     lines.push({
       id: `l${lines.length + 1}`,
       text,
       section: found ? found.section : null,
       quote: found ? found.quote : null,
+      from: named.length ? named : found ? [found.section] : [],
       flagged: unknownNames(text, answers).length > 0,
       edited: false,
     });
@@ -129,27 +138,52 @@ export function checkLines(answers: Answers, drafted: DraftedLine[]): DraftLine[
   return lines;
 }
 
+/** True when two words are the same but for one letter added, dropped or changed ("skis", "skies"). */
+function oneLetterOff(a: string, b: string): boolean {
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  if (a.length === b.length) return a.slice(i + 1) === b.slice(i + 1);
+  return a.length > b.length ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1);
+}
+
 /**
- * A line split into the person's own words and the rest: runs of two or more words found
- * together in one answer, with at least one word that isn't a small word like "the" or "and".
+ * A line split into the person's own words and the rest, found in code: any word from the answers
+ * that isn't a small word like "the" or "and" (a word of four or more letters may be one letter off,
+ * as with a typo), and any run of two or more words found together in one answer.
  */
 export function ownWords(line: string, answers: Answers): { text: string; mine: boolean }[] {
   const tokens = words(line);
   const answerStrings = wordStrings(answers).map((a) => a.joined);
+  const answerWords = [...new Set(SECTION_KEYS.flatMap((k) => words(answers[k] ?? "").map((w) => w.word)))].filter(
+    (w) => !STOPWORDS.has(w),
+  );
+  const isMine = (w: string) =>
+    !STOPWORDS.has(w) &&
+    (answerWords.includes(w) || (w.length >= 4 && answerWords.some((a) => a.length >= 4 && oneLetterOff(a, w))));
   const found = (from: number, to: number) => {
     const needle = ` ${tokens.slice(from, to).map((t) => t.word).join(" ")} `;
     return answerStrings.some((a) => a.includes(needle));
   };
-  const spans: [number, number][] = [];
+  const mine = tokens.map((t) => isMine(t.word));
+  // Runs of the person's words, small words included ("lost in the old market").
   let i = 0;
   while (i < tokens.length) {
     let j = i + 1;
     while (j < tokens.length && found(i, j + 1)) j++;
     if (j - i >= 2 && tokens.slice(i, j).some((t) => !STOPWORDS.has(t.word))) {
-      spans.push([tokens[i]!.start, tokens[j - 1]!.end]);
+      for (let k = i; k < j; k++) mine[k] = true;
       i = j;
     } else i++;
   }
+  // Neighbouring own words with only spaces between them are one highlight.
+  const spans: [number, number][] = [];
+  tokens.forEach((t, k) => {
+    if (!mine[k]) return;
+    const last = spans[spans.length - 1];
+    if (last && mine[k - 1] && /^\s*$/.test(line.slice(last[1], t.start))) last[1] = t.end;
+    else spans.push([t.start, t.end]);
+  });
   const parts: { text: string; mine: boolean }[] = [];
   let at = 0;
   for (const [start, end] of spans) {

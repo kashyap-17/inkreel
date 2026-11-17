@@ -232,7 +232,8 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
         ...action.state,
         // Drafts saved before Write with Inkreel have no answers or draft.
         answers: { ...emptyAnswers(), ...action.state.answers },
-        draft: action.state.draft ?? [],
+        // Lines drafted before each line named its sources have none.
+        draft: (action.state.draft ?? []).map((l) => ({ ...l, from: l.from ?? [] })),
         hashtags: action.state.hashtags ?? [],
         ownText: action.state.ownText ?? "",
         cards: (action.state.cards ?? []).map((c) => ({ ...c, extras: c.extras ?? [] })),

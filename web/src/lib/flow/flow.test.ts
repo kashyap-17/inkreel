@@ -333,6 +333,7 @@ describe("write with Inkreel", () => {
     text,
     section: "moment",
     quote: null,
+    from: ["moment"],
     flagged: false,
     edited: false,
   });

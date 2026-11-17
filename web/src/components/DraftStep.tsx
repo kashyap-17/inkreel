@@ -115,6 +115,7 @@ function LineItem({
 }) {
   const [editing, setEditing] = useState<string | null>(null);
   const names = line.flagged ? unknownNames(line.text, answers) : [];
+  const from = (line.from ?? []).map((k) => answers[k].trim()).filter(Boolean);
 
   if (editing !== null) {
     return (
@@ -165,9 +166,14 @@ function LineItem({
       <div className="small">
         {line.edited && <span className="label you">Edited by you</span>}
         {line.flagged && <span className="label weak">Check this line</span>}
-        {/* Most lines are in Inkreel's words (the draft is labelled as a whole); a line that keeps the
-            person's own words says which. */}
-        {!line.edited && line.quote && <p className="muted source">From your answer: “{line.quote}”</p>}
+        {/* Every line says where it came from: the answers it draws on, or that it's Inkreel's own. */}
+        {from.length > 0 ? (
+          <p className="muted source">
+            From {from.length === 1 ? "your thought" : "your thoughts"}: {from.map((a) => `“${a}”`).join(" · ")}
+          </p>
+        ) : (
+          <p className="muted source">In Inkreel’s words</p>
+        )}
         {names.length > 0 && (
           <p className="muted source">
             {names.map((n) => `“${n}”`).join(", ")} {names.length === 1 ? "isn’t" : "aren’t"} in your answers.

@@ -3,15 +3,23 @@
 import { expect, test, type Page } from "@playwright/test";
 import { goodPhotos } from "./photos";
 
+/** The owner's own test answers (17 Nov), used for the live draft. */
+const LIVE = {
+  moment: "Sunset in camden, full on punk",
+  place: "Hyde Park, beautiful lake",
+  felt: "Peaceful but lively",
+  other: "Blue skis and bus rides",
+};
+
 const MOMENT = "We got lost in the old market at dusk and didn't mind.";
 const PLACE = "The blue door near the spice stall.";
 
-/** What the test's stand-in for Gemini drafts: a traced line, an untraced one, and one with a new name. */
+/** What the test's stand-in for the server drafts: lines with their sources, one in Inkreel's own words, one with a new name. */
 const DRAFTED = [
-  { text: "Lost in the old market at dusk", section: "moment", quote: "lost in the old market" },
-  { text: "The sea was calling", section: "felt", quote: "the sea was calling" },
-  { text: "We waited for Maria by the blue door", section: "place", quote: "blue door" },
-  { text: "And we didn't mind at all", section: "moment", quote: "didn't mind" },
+  { text: "Lost in the old market at dusk", from: ["moment"] },
+  { text: "The sea was calling", from: [] },
+  { text: "We waited for Maria by the blue door", from: ["place"] },
+  { text: "And we didn't mind at all", from: ["moment", "felt"] },
 ];
 
 /** Answers the draft call; records what was sent. `status` other than 200 answers with that error. */
@@ -71,18 +79,18 @@ test("from answers to a draft traced to them, then on to a post by hand", async 
   await expect(page.getByRole("heading", { name: "Your lines" })).toBeVisible();
   expect(sent).toEqual([{ answers: { moment: MOMENT, place: PLACE, felt: "", other: "" } }]);
 
-  // Each line shows the words it came from; the person's own words are highlighted.
+  // Each line shows the thoughts it came from; the person's own words are highlighted.
   const lines = page.locator(".draft-line");
   await expect(lines).toHaveCount(4);
   await expect(page.locator(".label.ai", { hasText: "Written with Inkreel" })).toBeVisible();
-  await expect(lines.nth(0)).toContainText("From your answer: “lost in the old market”");
+  await expect(lines.nth(0)).toContainText(`From your thought: “${MOMENT}”`);
   await expect(lines.nth(0).locator("mark.mine")).toHaveText(["Lost in the old market at dusk"]);
   await expect(page.getByText("words are yours.")).toBeVisible();
   await expect(lines.nth(0).getByText("Check this line")).toHaveCount(0);
-  // A quote that isn't in the answers is dropped.
-  // A line in Inkreel's own words has no source line (the draft is labelled as a whole).
+  // A line drawn from no thought says so; one naming a thought that was left empty doesn't list it.
+  await expect(lines.nth(1)).toContainText("In Inkreel’s words");
   await expect(lines.nth(1)).not.toContainText("Check this line");
-  await expect(lines.nth(1)).not.toContainText("From your answer");
+  await expect(lines.nth(3)).toContainText(`From your thought: “${MOMENT}”`);
   // A name the person never gave is flagged.
   await expect(lines.nth(2)).toContainText("“Maria” isn’t in your answers.");
 
@@ -222,9 +230,10 @@ test("live: Gemini drafts a post from the answers, taken as hints", async ({ pag
   test.skip(process.env.E2E_LIVE !== "1", "Set E2E_LIVE=1 to draft with Gemini.");
   test.setTimeout(120_000);
   await startWriting(page);
-  await page.getByLabel("A moment you keep thinking about").fill(MOMENT);
-  await page.getByLabel("A place or thing that stands out").fill(PLACE);
-  await page.getByLabel("How it felt").fill("Slow, warm, like nobody needed us anywhere.");
+  await page.getByLabel("A moment you keep thinking about").fill(LIVE.moment);
+  await page.getByLabel("A place or thing that stands out").fill(LIVE.place);
+  await page.getByLabel("How it felt").fill(LIVE.felt);
+  await page.getByLabel("Anything else").fill(LIVE.other);
   await page.getByRole("button", { name: "Next: draft it with Inkreel" }).click();
   await expect(page.getByRole("heading", { name: "Your lines" })).toBeVisible({ timeout: 60_000 });
   const lines = page.locator(".draft-line");
@@ -235,7 +244,11 @@ test("live: Gemini drafts a post from the answers, taken as hints", async ({ pag
   const texts = await lines.locator(".line-text").allInnerTexts();
   for (const text of texts) expect(text).not.toMatch(/^(it|i) felt\b/i);
   const plain = (t: string) => t.toLowerCase().replace(/[^a-z' ]/g, "").trim();
-  expect(texts.map(plain)).not.toContain(plain(MOMENT));
+  for (const answer of Object.values(LIVE)) expect(texts.map(plain)).not.toContain(plain(answer));
   console.log("LIVE DRAFT\n" + (await lines.locator(".line-text").allInnerTexts()).join("\n"));
+  console.log("SOURCES\n" + (await lines.locator(".source").allInnerTexts()).join("\n"));
+  console.log("HIGHLIGHTED " + (await lines.locator("mark.mine").allInnerTexts()).join(" | "));
+  // Every line says where it came from.
+  await expect(lines.locator(".source")).toHaveCount(count);
   console.log("HASHTAGS " + (await page.locator(".hashtags .tag").allInnerTexts()).join(" "));
 });
