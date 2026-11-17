@@ -133,4 +133,4 @@ The significant changes, why they were made, and what was checked. The full log 
 
 ## Licence
 
-LICENCE-PLACEHOLDER
+MIT with the Commons Clause (see `LICENSE`). You may use, copy and modify Inkreel if you keep the copyright and licence notice, but you may not sell it, or a paid product or service whose value comes entirely or mainly from it. This makes it source-available, not open source.

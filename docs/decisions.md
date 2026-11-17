@@ -284,6 +284,13 @@ Testing by screenshot was slow, and the server never sees photo problems because
 - **Tester mode:** off by default; opening the app once with `?tester=1` turns it on for that phone (`?tester=0` turns it off). It shows engineering details that ordinary users don't see: the photo details panel, the browser's error text, "what Inkreel looked for", search fallbacks and the "Download test record" link. In tester mode the test record is also sent to the server log (`/api/record`, invite code required, after consent) each time a different post reaches the preview, in numbered pieces of 3,500 characters (`[test-record <id> n/m]`).
 - **Reading the log:** Vercel's free plan keeps runtime logs for about 30 minutes, so records are read soon after a test (`npx vercel@65.15.0 logs` from `web/`, signed in on the owner's Mac).
 
+## Licence: MIT with the Commons Clause (17 Nov 2026)
+
+`LICENSE` at the repo root: the MIT licence with the Commons Clause condition. Anyone may use, copy and modify Inkreel if they keep the copyright and licence notice, but may not sell it, or a paid product or service whose value comes entirely or mainly from it. Source-available, not open source.
+
+- **Why:** the owner wants attribution required and no one else selling Inkreel, while keeping the right to sell or relicense it.
+- **Not chosen:** plain MIT (allows commercial use); PolyForm Noncommercial 1.0.0 (bans all commercial use; the owner preferred MIT's familiarity). The Commons Clause allows a larger paid product that includes Inkreel, as long as Inkreel isn't its main value.
+
 ## Open
 
 - **Where photo embeddings run:** Gemini Embedding 2 (chosen to build first) or an on-phone model; decided by the Milestone 0 comparison (see "Photo selection").
@@ -292,4 +299,3 @@ Testing by screenshot was slow, and the server never sees photo problems because
 - **Optional aesthetic score** for choosing a stack's top pick and breaking ties between close matches (LAION aesthetic predictor, NIMA, MUSIQ).
 - **How to measure matching quality:** not decided. For now, how often users change a photo (every change is in the session log and test record) and what they say. The fuller comparison against the owner's own picks (Milestone 0) is still planned.
 - **Flash or Lite for the search call:** Lite since 16 Nov (Flash failed or hung under load; Lite answers in 1–2 s). The owner hasn't chosen; Lite's looser readings are to be judged in the next tests.
-- **License.**

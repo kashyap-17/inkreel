@@ -28,7 +28,7 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 - Stack, platform, photo input, backend, model and output: see `docs/decisions.md`. Follow it; propose changes there rather than working around it.
 
 ## Not decided yet (don't assume)
-- Where photo embeddings run (Gemini Embedding 2 first; on-phone model compared in Milestone 0) and the scoring weights; see "Photo selection" and "Open" in `docs/decisions.md`. License.
+- Where photo embeddings run (Gemini Embedding 2 first; on-phone model compared in Milestone 0) and the scoring weights; see "Photo selection" and "Open" in `docs/decisions.md`.
 - Propose options with trade-offs; let the owner decide.
 
 ## Privacy
