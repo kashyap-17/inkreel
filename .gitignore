@@ -177,3 +177,6 @@ AGENTS.md
 # Browser test output
 test-results/
 playwright-report/
+
+# macOS folder files
+.DS_Store

@@ -172,6 +172,7 @@ test("live: real matching gives every photo a reason", async ({ page }) => {
   test.skip(process.env.E2E_LIVE !== "1", "Set E2E_LIVE=1 to run real matching with Gemini.");
   test.setTimeout(300_000);
   await writeAndAddPhotos(page, (p) => goodPhotos(p, 5));
+  await page.waitForTimeout(600); // the draft is saved shortly after each change
   // Tester mode, so a failed search call shows on the matches screen and fails this test.
   await page.goto("/?tester=1");
   await page.getByRole("button", { name: "Next: find matches" }).click();

@@ -273,6 +273,7 @@ On the owner's phone test matching took almost 10 minutes. The search call faile
 - **The screen is kept on** during matching (screen wake lock). This stops it dimming by itself, not the user pressing the power button; the screen asks to stay open.
 - **Matching by hand while matching runs:** the run is abandoned, so a late result never replaces what the user picked.
 - **The wait follows the 0.1 / 1 / 10 second rule:** the button answers at once; one progress bar that jumps as real steps finish and creeps on between them (slowing near the end, never reaching it early), with one line under it: the current step ("Looking at your photos · 12 of 29") and "about 6 s left", or "almost there", or "Google's AI is busy, trying again in 3 s". No "taking longer than usual" message and no "Match by hand" during matching (the owner found both unhelpful); by hand stays on the consent screen and when matching fails.
+- **Photo indexing has backup requests too** (17 Nov): one embedding request hung until the 60 s server limit in the owner's test, while others answer in 0.3–0.7 s. Backups at 5 s and 10 s, failed after 20 s.
 - **Every call is logged** on the server (`[gemini] queries gemini-3.5-flash-lite ok 1299ms attempt 1`, `[api] /api/queries 200 1307ms`), and the test record has each stage's time, so a slow run can be traced.
 
 ## Tester mode and error reports (13 Nov 2026)

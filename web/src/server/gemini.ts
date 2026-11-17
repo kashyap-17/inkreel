@@ -75,36 +75,55 @@ async function call<T>(name: string, model: string, run: () => Promise<T>, busyT
 /** Attempts per Gemini call when Google answers "busy". */
 const BUSY_TRIES = 3;
 
-/** One vector per image. Each image is its own entry, so vectors aren't merged. */
-export async function embedImages(images: string[]): Promise<number[][]> {
-  try {
-    const res = await call("embed-images", MODELS.embed, () =>
-      ai().models.embedContent({
-        model: MODELS.embed,
-        contents: images.map((data) => ({ parts: [{ inlineData: { mimeType: "image/jpeg", data } }] })),
-        config: { outputDimensionality: EMBED_DIMENSIONS },
-      }),
+/**
+ * Embedding: normally 0.3–0.7 s, but a request can get no answer at all (17 Nov: one photo batch
+ * hung until the server's 60 s limit). Backup requests at 5 s and 10 s; failed after 20 s.
+ */
+const EMBED: Backups = { resendAfterMs: [0, 5_000, 10_000], maxAttempts: 4, deadlineMs: 20_000 };
+
+async function embed(name: string, contents: { parts: Part[] }[]): Promise<number[][]> {
+  return firstAnswer(EMBED, async (msLeft) => {
+    const res = await call(
+      name,
+      MODELS.embed,
+      async () => {
+        try {
+          return await ai().models.embedContent({
+            model: MODELS.embed,
+            contents,
+            config: { outputDimensionality: EMBED_DIMENSIONS, abortSignal: AbortSignal.timeout(msLeft) },
+          });
+        } catch (e) {
+          if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
+            throw new TimeoutError(`${MODELS.embed} took longer than ${msLeft} ms`);
+          }
+          throw e;
+        }
+      },
+      1,
     );
-    return vectorsOf(res.embeddings, images.length);
-  } catch (e) {
-    rethrow(e);
-  }
+    try {
+      return vectorsOf(res.embeddings, contents.length);
+    } catch (e) {
+      throw new ValidationError(e instanceof Error ? e.message : "bad vectors");
+    }
+  });
+}
+
+/** One vector per image. Each image is its own entry, so vectors aren't merged. */
+export function embedImages(images: string[]): Promise<number[][]> {
+  return embed(
+    "embed-images",
+    images.map((data) => ({ parts: [{ inlineData: { mimeType: "image/jpeg", data } }] })),
+  );
 }
 
 /** One vector per search text, with Gemini Embedding 2's search-query prefix. */
-export async function embedTexts(texts: string[]): Promise<number[][]> {
-  try {
-    const res = await call("embed-texts", MODELS.embed, () =>
-      ai().models.embedContent({
-        model: MODELS.embed,
-        contents: texts.map((t) => ({ parts: [{ text: `task: search result | query: ${t}` }] })),
-        config: { outputDimensionality: EMBED_DIMENSIONS },
-      }),
-    );
-    return vectorsOf(res.embeddings, texts.length);
-  } catch (e) {
-    rethrow(e);
-  }
+export function embedTexts(texts: string[]): Promise<number[][]> {
+  return embed(
+    "embed-texts",
+    texts.map((t) => ({ parts: [{ text: `task: search result | query: ${t}` }] })),
+  );
 }
 
 function vectorsOf(embeddings: { values?: number[] }[] | undefined, expected: number): number[][] {
@@ -162,14 +181,17 @@ async function generateJson(
  * sent again when there's no answer after each `resendAfterMs` (or straight away after a "busy"
  * or invalid answer); the first good answer wins; after `deadlineMs` the call fails.
  */
-interface Backups {
+export interface Backups {
   resendAfterMs: number[];
   maxAttempts: number;
   deadlineMs: number;
 }
 
 /** `attempt` gets the time left and which attempt it is (0 for the first), e.g. to pick a model. */
-function firstAnswer<T>(backups: Backups, attempt: (msLeft: number, index: number) => Promise<T>): Promise<T> {
+export function firstAnswer<T>(
+  backups: Backups,
+  attempt: (msLeft: number, index: number) => Promise<T>,
+): Promise<T> {
   const started = Date.now();
   const left = () => backups.deadlineMs - (Date.now() - started);
   return new Promise<T>((resolve, reject) => {
@@ -247,7 +269,7 @@ export async function searchQueries(req: QueriesRequest): Promise<QueriesReply> 
   });
 }
 
-class ValidationError extends Error {}
+export class ValidationError extends Error {}
 
 /** Call 3: does each candidate photo fit its chunk, and why (naming something visible). */
 export async function checkMatches(req: CheckRequest): Promise<CheckReply> {
