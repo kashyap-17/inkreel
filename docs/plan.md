@@ -164,7 +164,7 @@ The mode only decides how the write-up is made. After that, every mode runs the 
 
 - **I have writing:** no model call to make the write-up. Splitting into sentences is plain code.
 - **Help me write:** call 4.
-- **Mix:** call 5.
+- **Mix:** call 5 (dropped for now, 18 Nov 2026; see "Flow" in `decisions.md`).
 - **All modes:** calls 1–3, with matching and chunking in code between calls 2 and 3.
 
 Each call is one module: its specification (prompt, versioned), its output schema, its validation, and one function that runs it. No agent skills: skills suit an agent that decides for itself when it needs some guidance. Here, code always knows which call to run.
@@ -308,7 +308,7 @@ The owner chose to build straight away and run these checks in the app rather th
 - Deployed on Vercel with an invite code. Before the link goes to anyone but the owner: paid Gemini tier and an 18+ note (see "AI model" in `decisions.md`).
 
 ### Milestone 2: all three modes and the loop back
-- Help me write (call 4), then Mix (call 5, simple version).
+- Help me write (call 4). Mix (call 5) dropped for now.
 - Re-match the rest, with fixed matches and rejected pairs.
 - Rule for edited AI lines (open: see below).
 

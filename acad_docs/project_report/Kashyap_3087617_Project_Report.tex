@@ -14,9 +14,12 @@
 \usepackage{graphicx}
 \usepackage[export]{adjustbox}
 \usepackage{tabularx}
+\usepackage{xltabular}
 \usepackage{array}
 \usepackage{booktabs}
 \usepackage{float}
+\usepackage[section]{placeins}
+\renewcommand{\topfraction}{0.92}\renewcommand{\bottomfraction}{0.8}\renewcommand{\textfraction}{0.06}\renewcommand{\floatpagefraction}{0.85}
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta,fit,calc,backgrounds}
 
@@ -46,12 +49,12 @@
 % Counted words: the abstract, and the main report from the Scope section to the end of the
 % Compromises section, including the rationale table's text. Figures, storyboards, captions, the
 % title block, repository links and references are excluded by the brief and wrapped in
-% TC:ignore. texcount skips the table, so its words are counted separately and added.
-\newcommand{\abstractcount}{292}
-\newcommand{\maincount}{1079}
-\newcommand{\totalcount}{1371}
+% TC:ignore. The table is an xltabular, so texcount counts its text with the section.
+\newcommand{\abstractcount}{281}
+\newcommand{\maincount}{1076}
+\newcommand{\totalcount}{1357}
 \newcommand{\repo}{\href{https://github.com/kashyap-17/inkreel}{github.com/kashyap-17/inkreel}}
-\newcommand{\commit}{\href{https://github.com/kashyap-17/inkreel/tree/a2-submission}{tag \texttt{a2-submission}}}
+\newcommand{\commit}{\href{https://github.com/kashyap-17/inkreel/tree/a2-final}{tag \texttt{a2-final}}}
 
 % A storyboard frame: an image cropped to its useful part (trim = left bottom right top, in px),
 % with a number, who acts (P person, S system) and a short label.
@@ -82,45 +85,41 @@
 From an album of photos, say from a holiday, many people want to share a few on social media,
 with words that sound like them. Existing AI tools start from the photos and write the captions
 from scratch, so people rarely feel the words are their own, and those who already know what they
-want to say must still find the photos themselves. Inkreel reverses the order: the person writes
-first, and Inkreel finds the photos in their album that fit, with a short reason
-for each match, then builds an Instagram carousel and caption.
+want to say must still find the photos themselves. Inkreel reverses the order: the person starts
+with their words, in full or as a few notes, and Inkreel finds the photos in their album that fit, with a short reason
+for each match, then builds a carousel and caption for social media, such as Instagram.
 
-I built Inkreel as a mobile web app (Next.js on Vercel, with Google's Gemini models) and tested
-it on my own phone with my own photos. Two of the three authorship modes proposed in
-Assignment~1 work end to end. In ``I have writing'', the person's words are never changed: code
-splits them into parts, and the caption is the writing exactly as typed. In ``Write with
-Inkreel'', the person jots down a few thoughts and the AI drafts short lines from them; each line
-shows which thoughts it came from, the person's own words are highlighted, and every line can be
-edited, dropped or drafted again. In both modes, an LLM turns each line into photo searches,
-image embeddings score the photos, code splits the writing and chooses a photo for each part, and
-the LLM checks each choice and writes its reason. The person can swap, add or remove photos and
-move lines before sharing.
+I built Inkreel as a mobile web app (Next.js, with Google's Gemini models) and tested
+it on my phone with my own photos. It has two writing modes. In ``I have writing'', the
+person's words are never changed: the caption is the writing exactly as typed. In ``Write with
+Inkreel'', four short prompts (a moment, a place or thing, how it felt, anything else) guide the
+person to note what made it theirs, and the AI drafts lines from those notes; each line
+shows which notes it came from, their own words are highlighted, and any line can be
+edited, dropped or redrafted. In both modes, an LLM turns each line into photo searches,
+image embeddings score the photos, code picks a photo for each part, and
+the LLM checks each pick and writes its reason. The person can swap, add or remove photos before sharing.
 
-Current scope: the core loop is deployed and tested with my writing and photos. Planned: the third
-mode (AI suggestions inside the person's writing), text on the images, and a study of match quality
-and ownership with other people.
-
-\section{Scope, and changes since Assignment 1}
-
-Assignment~1 (A1) asked how match quality and ownership change as the writing moves from
-AI-written to entirely the person's own. This phase builds the system that question
-needs. Three things changed. Photos are no longer grouped into ``moments'': my first real
-album had several good, different shots within 15 minutes, so only near-identical shots are
-stacked. People no longer split their writing; Inkreel does, once the photos are known. And the
-AI-written mode now treats the person's notes as hints, not words to reuse (Figure~\ref{fig:prompts}).
+Current scope: the core loop is deployed and tested. Planned: text on the
+images, and a study of match quality and ownership with other people.
 
 \section{Design rationale}
 
 Table~\ref{tab:rationale} lists the main choices.
 
-\begin{table}[!tp]
-\centering\footnotesize
-\renewcommand{\arraystretch}{1.18}
-\begin{tabularx}{\textwidth}{@{}L{3.4cm}YL{2.95cm}L{1.75cm}@{}}
+{\footnotesize\renewcommand{\arraystretch}{1.18}
+\begin{xltabular}{\textwidth}{@{}L{3.4cm}YL{2.95cm}L{1.75cm}@{}}
+\caption{Design rationale. Lecture labels: L02 the simplest system that works; L04 feedback
+timing; L05 recognition over recall; L06 bounded rationality and anchoring; L08 LLMs generate,
+not look up; L11 sources shown, not just cited; L12 confirm what cannot be undone or seen.}\label{tab:rationale}\\
 \toprule
 \textbf{Design choice} & \textbf{Why it suits the problem} & \textbf{Evidence or reference} & \textbf{Status}\\
 \midrule
+\endfirsthead
+\toprule\multicolumn{4}{@{}l}{\textit{Table 1, continued}}\\
+\textbf{Design choice} & \textbf{Why it suits the problem} & \textbf{Evidence or reference} & \textbf{Status}\\
+\midrule
+\endhead
+
 \textbf{Words first:} the person writes, then adds photos; Inkreel finds photos that fit.
 & People also tell photo stories story-first; AI tools serve only photo-first telling.
 & Balabanović et al.~\cite{balabanovic_storytelling_2000}; my market check
@@ -135,7 +134,7 @@ kept.
 & Implemented\\
 \textbf{A reason and a swap per match:} the reason quotes the line; ``Change photo'' offers the
 next picks first.
-& Correction must be cheap~\cite{horvitz_principles_1999}. People mostly take the first-ranked
+& Correction must be cheap~\cite{horvitz_principles_1999}. People take the first-ranked
 option (bounded rationality, L06), so alternatives are shown; a reason beside the photo is
 checked at a glance (shown, not just cited, L11).
 & Explanatory debugging~\cite{kulesza_principles_2015}; Guidelines 9 and
@@ -177,22 +176,18 @@ for calls that hang.
 vary, and the API was often busy (L08).
 & Matching took 10 minutes once, now 8~s
 & Implemented\\
-\textbf{Mix mode; text on images.}
-& Completes A1's authorship range, one line at a time: paragraph-sized suggestions lowered
-ownership~\cite{dhillon_shaping_2024}. Text on images shows which line goes with which photo.
-& A1 question
+\textbf{Text on images:} each line placed on its photo.
+& Shows which line goes with which photo, which a caption alone hides.
+& Captions first, to learn from real posts
 & Planned\\
 \bottomrule
-\end{tabularx}
-\caption{Design rationale. Lecture labels: L02 the simplest system that works; L04 feedback
-timing; L05 recognition over recall; L06 bounded rationality and anchoring; L08 LLMs generate,
-not look up; L11 sources shown, not just cited; L12 confirm what cannot be undone or seen.}
-\label{tab:rationale}
-\end{table}
+\end{xltabular}}
+
 
 \section{System}
 
-Most of the work (Figures~\ref{fig:arch} and~\ref{fig:flow}) is plain code on the phone: reading photos, setting weak ones aside,
+Most of the work (Figures~\ref{fig:arch} and~\ref{fig:flow}) is ordinary code on the phone, with no
+AI: reading photos, setting weak ones aside,
 stacking, scoring and splitting the writing, which keeps it fast, free and testable. The server
 holds the API key, checks the invite code and validates every request and reply against a schema,
 which guarantees shape, not truth (L09). The AI has three jobs, each one call with a versioned
@@ -224,7 +219,10 @@ sources; every change is reversible; and no writing or photos are sent without a
 \section{How the work developed}
 
 I built Inkreel in 33 commits from 7 to 17 November, testing on my phone (README, development
-record). Three changes show how evidence moved the design.
+record). Two early changes came from my own album: only near-identical shots are stacked, not
+``moments'', because good, different shots fell within 15 minutes; and Inkreel, not the person,
+splits the writing, since people write before they know their photos. Three later changes show how evidence moved the
+design.
 
 \textbf{Photos that could not be opened.} On Android, up to 28 of 32 picked photos failed partway
 through reading. Error reports in the server log named the cause. I reproduced it in desktop
@@ -267,12 +265,13 @@ verdict. Version 11 adds each line's sources. All runs: \texttt{web/experiments/
 \section{Compromises and next steps}
 
 Posts are photos with the words in the caption: no text on images or video until real posts show
-the need. All three AI jobs run only on a small, fast model, since larger ones took 15~s or more and
+the need. A third mode, AI lines suggested inside the person's own writing, was dropped: Write
+with Inkreel, with every line editable, covers most of that need. All three AI jobs run only on a small, fast model, since larger ones took 15~s or more and
 were often busy; it still invents details in some drafts. Testing is qualitative, from my own
-phone tests on a small set of photos, with no metrics yet. The planned study measures match
-quality, ownership and willingness to post across both modes with other people (the A1 question).
+phone tests on a small set of photos, with no metrics yet. A planned study with other
+people measures match quality, ownership and willingness to post across both modes.
 Building already showed a tension it should test: lines in Inkreel's words read better as posts
-but keep less of the person's text, which the A1 literature links to lower
+but keep less of the person's text, which the literature links to lower
 ownership~\cite{draxler_ai_2024}.
 
 %TC:ignore
@@ -292,8 +291,8 @@ and \texttt{*.test.ts} next to the code (119 unit and 17 browser tests).
 phone tests and screenshots, and the Assignment~1 literature review. \textbf{Reused:} open-source
 libraries (README, ``Technology stack'') and Google's Gemini models through their API; course
 concepts, cited by lecture (L01--L12). \textbf{Assisted:} the code, tests, documentation and
-drafts of this report were written with Claude Code under my direction; the README's ``AI
-assistance'' gives examples of what I reviewed and changed. Figures~\ref{fig:arch}
+this report were developed with the assistance of Claude Code, under my direction; how I used it,
+with examples of what I checked and changed, is in the README (``AI assistance''). Figures~\ref{fig:arch}
 and~\ref{fig:flow} update the diagrams in \texttt{docs/plan.md}.}
 
 \bibliographystyle{abbrv}

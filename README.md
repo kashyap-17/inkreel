@@ -4,7 +4,7 @@
 
 Inkreel turns a camera roll full of photos into posts worth sharing, without losing what made them yours. You write first, in your own words or as a few rough thoughts, and Inkreel finds the photos in your album that go with them, with a short reason for each, then gives you a carousel and caption ready to post.
 
-*README prose: about 1,880 words, tables included (code, setup commands and commit links not counted).*
+*README prose: about 1,930 words, tables included (code, setup commands and commit links not counted).*
 
 ## Project status
 
@@ -21,11 +21,11 @@ Inkreel turns a camera roll full of photos into posts worth sharing, without los
 
 **Not finished:**
 
-- Mix: AI suggestions inside your own writing, accepted one by one (planned).
 - Text on the images, rather than only in the caption.
 - Keeping your swapped photos when you add more photos after matching (everything is matched again now).
 - Converting HEIC photos that the browser can't open.
-- Measuring match quality against photos people pick themselves, and a study of ownership with other people.
+- Testing so far is qualitative, on my own photos and writing; there are no metrics yet. A study of match quality and ownership with other people is planned.
+- Not planned for now: a third mode with AI lines suggested inside your own writing. Write with Inkreel, with every line editable, covers most of that need.
 - Known limits: Google's models are sometimes overloaded, and the drafting model still invents small details in some drafts.
 
 ## Technology stack
@@ -101,7 +101,7 @@ The significant changes, why they were made, and what was checked. The full log 
 
 ## AI assistance
 
-**Tools.** [Claude Code](https://claude.com/claude-code) (Anthropic's coding agent, Claude Opus models) wrote most of the code, tests, prompt experiments and documentation from my instructions, and drafted this README and my project report. Gemini is not an assistant here: it is the model inside the app.
+**Tools.** I built Inkreel with the assistance of [Claude Code](https://claude.com/claude-code) (Anthropic's coding agent, Claude Opus models). I set the direction, made the design decisions and tested on my phone; Claude Code generated code, tests, prompt experiments and documentation from my instructions, which I reviewed and changed. It also helped draft this README and my project report. Gemini is not an assistant here: it is the model inside the app.
 
 **What I asked for, and what I changed.** A few examples (more in `docs/devlog.md`):
 
@@ -122,14 +122,14 @@ The significant changes, why they were made, and what was checked. The full log 
 
 - **Original (mine):** the idea and positioning, every design decision recorded in `docs/decisions.md`, the direction for each prompt and the verdict on its output, the phone tests, the screenshots, and the literature review.
 - **Reused:** open-source libraries under their own licences (Next.js, React, Zod, exifr, `@google/genai`, Vitest, Playwright); Google's Gemini models through their API. No code was copied from other projects.
-- **Assisted:** code, tests, prompt experiments, documentation and report drafts written by Claude Code from my instructions and reviewed by me, as described above.
+- **Assisted:** code, tests, prompt experiments, documentation and report drafts, produced with the assistance of Claude Code from my instructions and reviewed by me, as described above.
 
 ## Additional files
 
 - `docs/`: the build plan with the flow and architecture diagrams (`plan.md`), decisions and their reasons (`decisions.md`), the development log (`devlog.md`), how it's tested (`testing.md`), and market notes (`market.md`).
 - `web/experiments/`: prompt experiments with their outputs.
-- `acad_docs/`: my literature review (Assignment 1, `lit_review/`, PDF and LaTeX) and the LaTeX source of the project report (`project_report/`).
-- **Not in the repository:** the project report PDF and the phone screenshots in it, because they show my personal photos. The PDF is submitted separately. No ZIP file is needed.
+- `acad_docs/`: my literature review (Assignment 1, `lit_review/`, PDF and LaTeX) and the project report (`project_report/`, PDF and LaTeX).
+- **Not in the repository:** the report's figure images and the phone screenshots, kept on my computer; the report PDF, which includes them, is in `acad_docs/project_report/`. No ZIP file is needed.
 
 ## Licence
 

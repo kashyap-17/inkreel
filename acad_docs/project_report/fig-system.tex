@@ -1,5 +1,5 @@
 % Figure 1: system diagram. Solid = implemented, dashed = planned, dotted = simulated (tests only).
-\begin{figure}[p]
+\begin{figure}[!htbp]
 \centering
 \begin{tikzpicture}[
   font=\sffamily\scriptsize,
@@ -55,8 +55,7 @@
 \node[ztitle] at (google.north west) {Google Gemini API};
 
 % ---- Planned and simulated
-\node[plan=3.0cm, below=0.8cm of api] (mix) {\textbf{Planned:} Mix, AI lines suggested inside the person's writing};
-\node[plan=3.0cm, below=of mix] (txt) {\textbf{Planned:} text on images; an on-phone embedding model};
+\node[plan=3.0cm, below=0.8cm of api] (txt) {\textbf{Planned:} text on images; an on-phone embedding model};
 \node[plan=3.3cm, below=0.8cm of flash] (study) {\textbf{Planned:} a study of match quality and ownership; opt-in tracing};
 \node[sim=3.3cm, below=of study] (tests) {\textbf{Simulated:} browser tests answer for the server (staged replies, drawn photos)};
 
@@ -70,7 +69,6 @@
 \draw[two] (lite.west -| api.east) -- (lite.west);
 \draw[two, dashed, accent!50] (flash.west -| api.east) -- (flash.west);
 \draw[arr] ([xshift=-4pt]ui.west) -- ++(-0.35,0) |- node[lab=1.2cm, pos=0.25, left=1pt] {carousel and caption} ([xshift=-4pt]share.west);
-\draw[arr, dashed] (mix.west) -- (mix.west -| dc.east);
 
 % ---- Legend
 \node[anchor=north west, font=\sffamily\tiny, align=left] at (6.6,-4.6) {%

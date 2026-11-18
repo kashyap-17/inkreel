@@ -13,7 +13,7 @@ Original background, research and open questions: `acad_docs/initial_handover.md
 ## Product rules (agreed direction)
 - **The user's own words are never reworded** in "fully yours" mode. Splitting into chunks at sentence breaks, ordering, and choosing which parts to use are allowed. The user writes freely; Inkreel does the chunking (see `docs/decisions.md`).
 - **Provenance is always visible:** AI-written text is marked differently from the user's words.
-- Three authorship modes: AI writes from the user's prompts/answers · fully the user's writing · hybrid (AI suggestions accepted or rejected one by one). The start screen shows two choices: "I have writing" and "Write with Inkreel" (the two AI-assisted modes together; AI writes from the answers is built, hybrid isn't).
+- Three authorship modes: AI writes from the user's prompts/answers · fully the user's writing · hybrid (AI suggestions accepted or rejected one by one). The start screen shows two choices: "I have writing" and "Write with Inkreel" (AI writes from the answers is built; hybrid is dropped for now, since Write with Inkreel with editable lines covers most of it).
 - **Each chunk gets one photo, and a post never repeats a shot.** Near-identical shots taken within a couple of minutes form a stack; a post uses at most one photo per stack. Swapping offers other shots of the same scene, photos from around then, and the rest of the trip (see `docs/decisions.md`).
 - Every match shows a short reason, and every match can be swapped.
 - Positioning must lead with the real benefit: from a huge trip album to shareable posts, keeping the user's voice and personality.

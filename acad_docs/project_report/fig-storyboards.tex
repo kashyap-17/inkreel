@@ -6,37 +6,38 @@
   \vspace{-\ht\strutbox}\fcolorbox{inkmuted!60}{gridline!45}{\parbox{0.92\linewidth}{\textbf{#1}\\[3pt]#2}}
   \end{minipage}}
 
-\begin{figure}[p]
+\begin{figure}[!b]
+\renewcommand{\sbw}{0.29\textwidth}
 \centering
-\frameimg{\sbw}{0 796 0 327}{a183354}{\textbf{1 P.} Writes a six-line poem. The screen promises Inkreel ``never changes a word''.}\hfill
-\frameimg{\sbw}{0 305 0 993}{a184106}{\textbf{2 P.} Adds 30 photos from Google Photos and asks for 6 in the post.}\hfill
-\frameimg{\sbw}{0 1570 0 131}{a184131}{\textbf{3 S.} Finds the matches; the bar shows the current step and the time left.}\\[10pt]
-\frameimg{\sbw}{0 545 0 900}{a184146}{\textbf{4 S.} Each photo comes with a reason that quotes its line: ``Red neon lights over an outdoor venue, for `trippy lights'\,''.}\hfill
-\frameimg{\sbw}{0 780 0 480}{a184206}{\textbf{5 P.} ``Change photo'': Inkreel's next picks with reasons, then photos from around then and the rest.}\hfill
-\frameimg{\sbw}{0 200 0 1150}{a184221}{\textbf{6 S.} The caption is the poem exactly as written. Share copies it.}\\[10pt]
-\frameimg{\sbw}{0 40 0 1400}{a184231}{\textbf{7 P.} Taps Share: the phone's share sheet opens with the six photos and the caption copied.}\hfill
+\frameimg{\sbw}{0 500 0 430}{a200830}{\textbf{1 P.} Chooses ``I have writing'' on the start screen.}\hfill
+\frameimg{\sbw}{0 796 0 327}{a183354}{\textbf{2 P.} Writes a six-line poem. The screen promises Inkreel ``never changes a word''.}\hfill
+\frameimg{\sbw}{0 305 0 993}{a184106}{\textbf{3 P.} Adds 30 photos from Google Photos and asks for 6 in the post.}\\[10pt]
+\frameimg{\sbw}{0 1570 0 131}{a184131}{\textbf{4 S.} Finds the matches; the bar shows the current step and the time left.}\hfill
+\frameimg{\sbw}{0 545 0 900}{a184146}{\textbf{5 S.} Each photo comes with a reason that quotes its line: ``Red neon lights over an outdoor venue, for `trippy lights'\,''.}\hfill
+\frameimg{\sbw}{0 780 0 480}{a184206}{\textbf{6 P.} ``Change photo'': Inkreel's next picks with reasons, then photos from around then and the rest.}\\[10pt]
+\frameimg{\sbw}{0 200 0 1150}{a184221}{\textbf{7 S.} The caption is the poem exactly as written. Share copies it.}\hfill
+\frameimg{\sbw}{0 40 0 1400}{a184231}{\textbf{8 P.} Taps Share: the phone's share sheet opens with the six photos and the caption copied.}\hfill
 \sbnote{Feedback and control}{Who chose each photo is labelled: ``Matched by Inkreel'' or ``Chosen by you''. Undo,
-fewer or more photos, move a line, no photo for a part.}\hfill
-\begin{minipage}[t]{\sbw}\mbox{}\end{minipage}
+fewer or more photos, move a line, no photo for a part.}
 \caption{Storyboard 1, implemented: ``I have writing'', on my phone (16 Nov 2026). P: the person acts; S: the
 system acts. Strangers' faces are pixelated.}
 \label{fig:sb-own}
 \end{figure}
 
-\begin{figure}[p]
+\begin{figure}[!htbp]
 \centering
-\frameimg{\sbw}{0 500 0 430}{a200830}{\textbf{1 P.} Chooses ``Write with Inkreel'' on the start screen.}\hfill
-\frameimg{\sbw}{0 260 0 540}{b100226}{\textbf{2 P.} Writes a few words under any of four labels. The note says where they go.}\hfill
-\frameimg{\sbw}{0 410 0 500}{b103336}{\textbf{3 S.} Drafts three lines, each with the thoughts it came from. Two details are invented (``all afternoon'', ``loud guitars'').}\\[10pt]
-\frameimg{\sbw}{0 300 0 390}{b103446}{\textbf{4 P, S.} ``Draft again'' gives lines closer to the thoughts; ``bus'', ``lake'', ``sunset'' and ``punk'' are highlighted as mine.}\hfill
-\frameimg{\sbw}{0 20 0 700}{b103919}{\textbf{5 S.} After the same matching as Storyboard 1, the post, with the hashtags at the end.}\hfill
+\sbnote{Start}{The same start screen as Figure~\ref{fig:sb-own}, frame 1; this time the person chooses ``Write with Inkreel''.}\hfill
+\frameimg{\sbw}{0 260 0 540}{b100226}{\textbf{1 P.} Writes a few words under any of four prompts. The note says where they go.}\hfill
+\frameimg{\sbw}{0 410 0 500}{b103336}{\textbf{2 S.} Drafts three lines, each with the notes it came from. Two details are invented (``all afternoon'', ``loud guitars'').}\\[10pt]
+\frameimg{\sbw}{0 300 0 390}{b103446}{\textbf{3 P, S.} ``Draft again'' gives lines closer to the notes; ``bus'', ``lake'', ``sunset'' and ``punk'' are highlighted as mine.}\hfill
+\frameimg{\sbw}{0 20 0 700}{b103919}{\textbf{4 S.} After the same matching as Figure~\ref{fig:sb-own}, the post, with the hashtags at the end.}\hfill
 \sbnote{Feedback and control}{Every line: Edit or Drop. Below: remove a hashtag, ``Draft again'', ``Change my answers''.
 ``Written with Inkreel'' labels the draft and every part made from it.}
 \caption{Storyboard 2, implemented: ``Write with Inkreel'', on my phone (17 Nov 2026, prompt version 11).}
 \label{fig:sb-write}
 \end{figure}
 
-\begin{figure}[p]
+\begin{figure}[!htbp]
 \centering
 \frameimg{\sbw}{0 430 0 180}{c1-consent}{\textbf{1 P.} Sees what is sent and to whom, once, before any photo leaves the phone. Can match by hand instead.}\hfill
 \frameimg{\sbw}{0 1160 0 180}{c2-busy}{\textbf{2 S.} The AI is busy: the screen says so and when it will try again; the bar keeps moving.}\hfill

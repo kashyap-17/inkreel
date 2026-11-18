@@ -9,7 +9,7 @@ The user starts with their thoughts, feelings and words, and adds photos after. 
 The first screen asks how the user wants to tell the trip:
 - **I have writing** (fully yours): paste or type; used exactly as written.
 - **Help me write** (AI writes from your input): four light prompts answered before any photos are added; the AI writes from the answers only. Shown on the start screen as "Write with Inkreel". Design in "Write with Inkreel" below (16 Nov), which replaces the earlier question list.
-- **Mix** (hybrid): the user's writing stays; the AI suggests extra lines (whole new lines, never edits to the user's lines), each accepted or rejected. MVP version: a list of suggested lines with accept/reject, not inline tracked changes.
+- **Mix** (hybrid): the user's writing stays; the AI suggests extra lines (whole new lines, never edits to the user's lines), each accepted or rejected. MVP version: a list of suggested lines with accept/reject, not inline tracked changes. **Dropped for now (18 Nov 2026, owner):** Write with Inkreel, with every line editable and its sources shown, covers most of this need, and a third mode adds screens without a clear gain. Revisit if testers ask to keep their own lines and add AI ones.
 
 All three modes end in the same thing: one write-up, with each part marked as the user's or the AI's. Everything after that is identical for every mode: photos → matches → preview and share. The AI never sees the photos while writing.
 
@@ -214,7 +214,7 @@ Used to index photos, write search queries, check matches and write reasons, and
 | 2. Search queries (text) | Gemini 3.5 Flash Lite (since 16 Nov), Flash once as fallback | Planned on Flash for its judgement; in tests Flash took 25 s or more and hung under load, Lite answers in 1–2 s. See "Waiting and failures" below. |
 | 3. Check and explain (small images) | Gemini 3.5 Flash Lite | A few requests per trip; confirming and naming a visible detail is the easier task. |
 | 4. Help me write (text) | Gemini 3.5 Flash Lite (16 Nov), backups at 6 s and 12 s | Planned on Flash; on short answers Flash wrote the same lines 15–40 s slower (comparison in "Write with Inkreel"). |
-| 5. Mix suggestions (text) | Gemini 3.6 Flash | Same reason as call 4. |
+| 5. Mix suggestions (text) | Dropped for now (see "Flow") | — |
 
 Free-tier limits on the owner's project (AI Studio, 7 Nov 2026):
 

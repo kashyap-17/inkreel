@@ -1,5 +1,5 @@
 % Figure 2: the flow as built, with failure paths (red) and the person's changes (blue).
-\begin{figure}[p]
+\begin{figure}[!tp]
 \centering
 \begin{tikzpicture}[
   font=\sffamily\scriptsize,
@@ -78,7 +78,7 @@
 % legend
 \node[anchor=north west, font=\sffamily\tiny, align=left] at (-6.9,-1.0) {%
   \tikz\draw[accent, thick] (0,0) rectangle (0.4,0.2); AI call\\[2pt]
-  \tikz\draw[inkmuted, fill=gridline!70] (0,0) rectangle (0.4,0.2); plain code\\[2pt]
+  \tikz\draw[inkmuted, fill=gridline!70] (0,0) rectangle (0.4,0.2); code, no AI\\[2pt]
   \tikz\draw[inkmuted, fill=warm!14] (0,0) rectangle (0.4,0.2); the person decides\\[2pt]
   \tikz\draw[failred, densely dotted, thick, -{Stealth}] (0,0.1) -- (0.5,0.1); failure path\\[2pt]
   \tikz\draw[accent, dashed, thick, -{Stealth}] (0,0.1) -- (0.5,0.1); the person's change};

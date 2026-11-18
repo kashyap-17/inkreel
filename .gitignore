@@ -167,8 +167,7 @@ watch-history.json
 # Academic material: module notes (third-party, large) and LaTeX build files
 acad_docs/IIS-notes-*.pdf
 acad_docs/**/build/
-# The project report PDF and its figure images show personal photos; built locally, submitted separately
-acad_docs/project_report/*.pdf
+# The project report's figure images (copies of phone screenshots); the built PDF is committed
 acad_docs/project_report/figures/
 
 # Next.js and Vercel
